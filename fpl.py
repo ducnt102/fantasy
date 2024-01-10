@@ -1,9 +1,52 @@
 from flask import Flask
-
+import threading
 import requests
+import json
+import time
 
 app = Flask(__name__)
+
 league_id = 169451
+
+def generate_json_data():
+
+    url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
+
+    # Gửi yêu cầu GET đến API
+    response = requests.get(url)
+
+    # Kiểm tra xem yêu cầu có thành công không (status code 200)
+    if response.status_code == 200:
+        # Lấy dữ liệu JSON từ phản hồi
+        data = response.json()
+        with open("league_id.json", "w") as file:
+            json.dump(data, file)
+        # Kiểm tra xem dữ liệu có chứa thông tin standings không
+        if 'standings' in data:
+            standings_info = data['standings']
+
+            # Kiểm tra xem có kết quả (results) nào trong standings hay không
+            if 'results' in standings_info:
+                results = standings_info['results']
+
+                # Kiểm tra xem danh sách kết quả có rỗng không
+                if results:
+                    for result in results:
+                        user_id = result['entry']
+                        url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
+                        # Gửi yêu cầu GET đến API
+                        response = requests.get(url)
+                        # Kiểm tra xem yêu cầu có thành công không (status code 200)
+                        if response.status_code == 200:
+                          # Lấy dữ liệu JSON từ phản hồi
+                          user_data = response.json()
+                          # Lưu dữ liệu vào tệp JSON
+                          with open(f"{user_id}.json", "w") as file:
+                            json.dump(user_data, file)
+                          print(f"Dữ liệu cho user_id {user_id} đã được lưu vào file {user_id}.json")
+                else:
+                    print(f"Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
+
 
 def calculate_total_transfers_cost(user_id):
     total_transfers_cost = 0
@@ -16,8 +59,21 @@ def calculate_total_transfers_cost(user_id):
 
     return total_transfers_cost
 
-
 def get_user_events(user_id):
+    with open(f"{user_id}.json", "r") as file:
+        user_data = json.load(file)
+    if 'current' in user_data:
+        return user_data['current']
+    return []
+
+# Hàm để lấy dữ liệu từ tệp JSON về chip của người dùng
+def get_user_chips(user_id):
+    with open(f"{user_id}.json", "r") as file:
+        user_data = json.load(file)
+    if 'chips' in user_data:
+        return user_data['chips']
+    return []
+def get_user_events_x(user_id):
     user_events = []
     url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
 
@@ -48,7 +104,6 @@ def calculate_total_points(user_id):
 
         # Tính tổng điểm từ các thông tin quan trọng
         total_points += points - event_transfers_cost
-
     return total_points
 
 def calculate_home_away_points(user_id):
@@ -95,7 +150,7 @@ def get_chip_event(user_chips, chip_name):
 
     return ''
 
-def get_user_chips(user_id):
+def get_user_chips_x(user_id):
     user_chips = []
     url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
 
@@ -116,21 +171,12 @@ def get_user_chips(user_id):
 
 @app.route('/')
 def display_user_info():
+    with open("league_id.json", "r") as file:
+        data = json.load(file)
     user_info = []
-    url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
-
-    # Gửi yêu cầu GET đến API
-    response = requests.get(url)
-
-    # Kiểm tra xem yêu cầu có thành công không (status code 200)
-    if response.status_code == 200:
-        # Lấy dữ liệu JSON từ phản hồi
-        data = response.json()
-
-        # Kiểm tra xem dữ liệu có chứa thông tin standings không
-        if 'standings' in data:
+    # Kiểm tra xem dữ liệu có chứa thông tin standings không
+    if 'standings' in data:
             standings_info = data['standings']
-
             # Kiểm tra xem có kết quả (results) nào trong standings hay không
             if 'results' in standings_info:
                 results = standings_info['results']
@@ -205,5 +251,13 @@ def render_user_info(user_info):
     html += "</table>"
     return html
 
+def generate_json_data_thread():
+    while True:
+        generate_json_data()
+        time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',port=9999)
+    thread = threading.Thread(target=generate_json_data_thread)
+    thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    thread.start()
+    app.run(host='0.0.0.0',port=19999)
