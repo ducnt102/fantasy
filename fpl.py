@@ -171,8 +171,8 @@ def get_user_chips_x(user_id):
 
 def last_value_bank(user_id):
     max_event = 0
-    last_value = 0
-    last_bank = 0
+    last_value = 0.0
+    last_bank = 0.0
 
     user_events = get_user_events(user_id)
 
@@ -187,7 +187,7 @@ def last_value_bank(user_id):
             last_value = value
             last_bank = bank
 
-    return last_value, last_bank
+    return last_value/10.0, last_bank/10.0
 
 @app.route('/')
 def display_user_info():
@@ -240,9 +240,50 @@ def display_user_info():
     return render_user_info(user_info)
 
 def render_user_info(user_info):
-    # Tạo HTML cho bảng thông tin người dùng
-    html = "<h1>KANAMA FANTASY</h1>"
-    html += "<table border='1'>"
+    # Tạo HTML cho trang
+    html = "<html><head>"
+    html += "<style>"
+    html += "body {"
+    html += "    margin: 0; /* Loại bỏ margin mặc định của body */"
+    html += "    padding: 0; /* Loại bỏ padding mặc định của body */"
+    html += "    font-family: Arial, sans-serif; /* Lựa chọn font chữ */"
+    html += "    background-image: url('https://www.ncfsc.co.uk/wp-content/uploads/2023/05/FPL_Banner.png');"
+    html += "    background-size: 20% auto;"
+    html += "    background-repeat: no-repeat;"
+    html += "    background-position: left top; /* Đặt vị trí ảnh nền ở bên trái trên */"
+    html += "}"
+    html += "#header {"
+    html += "    background-color: transparent; /* Đặt màu nền của header là trong suốt */"
+    html += "    text-align: center; /* Căn lề giữa */"
+    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
+    html += "    color: black; /* Màu chữ đen */"
+    html += "}"
+    html += "#table-container {"
+    html += "    background-color: #4CAF50; /* Màu nền của table container */"
+    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
+    html += "}"
+    html += "table {"
+    html += "    border-collapse: collapse;"
+    html += "    width: 100%;"
+    html += "    margin: 0 auto; /* Căn lề giữa */"
+    html += "}"
+    html += "th, td {"
+    html += "    border: 1px solid white;"
+    html += "    padding: 10px;"
+    html += "    text-align: center;"
+    html += "    color: white;"
+    html += "}"
+    html += "</style>"
+    html += "</head><body>"
+
+    # Header
+    html += "<div id='header'>"
+    html += "<h1>KANAMA FANTASY</h1>"
+    html += "</div>"
+
+    # Table Container
+    html += "<div id='table-container'>"
+    html += "<table>"
     html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Home Points</th><th>Away Points</th><th>Event Transfers</th><th>Total Transfers Cost</th><th>WILDCARD</th><th>BBOOST</th><th>3CX</th><th>Last_value</th><th>Last_bank</th></tr>"
 
     for user in user_info:
@@ -258,7 +299,7 @@ def render_user_info(user_info):
         cxc_event = user['cxc_event']
         last_bank = user['last_bank']
         last_value = user['last_value']
-        
+
         # Thêm thông tin người dùng vào bảng
         html += "<tr>"
         html += f"<td>{entry_name}</td>"
@@ -271,12 +312,14 @@ def render_user_info(user_info):
         html += f"<td>{wildcard_event}</td>"
         html += f"<td>{bboost_event}</td>"
         html += f"<td>{cxc_event}</td>"
-        html += f"<td>{last_user}</td>"
+        html += f"<td>{last_value}</td>"
         html += f"<td>{last_bank}</td>"
         html += "</tr>"
 
     html += "</table>"
+    html += "</body></html>"
     return html
+
 
 def generate_json_data_thread():
     while True:
