@@ -169,6 +169,26 @@ def get_user_chips_x(user_id):
         print(f"Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
     return user_chips
 
+def last_value_bank(user_id):
+    max_event = 0
+    last_value = 0
+    last_bank = 0
+
+    user_events = get_user_events(user_id)
+
+    # Lặp qua từng sự kiện và tìm sự kiện có số lớn nhất
+    for event in user_events:
+        event_number = event.get('event', 0)
+        value = event.get('value', 0)
+        bank = event.get('bank', 0)
+
+        if event_number > max_event:
+            max_event = event_number
+            last_value = value
+            last_bank = bank
+
+    return last_value, last_bank
+
 @app.route('/')
 def display_user_info():
     with open("league_id.json", "r") as file:
@@ -187,6 +207,7 @@ def display_user_info():
                         user_id = result['entry']
                         total_points = calculate_total_points(user_id)
                         home_points, away_points = calculate_home_away_points(user_id)
+                        last_value, last_bank = last_value_bank(user_id)
                         player_name = result.get('player_name', '')
                         entry_name = result.get('entry_name', '')
                         event_note = find_events_with_transfers_cost(user_id)
@@ -209,7 +230,9 @@ def display_user_info():
                             'total_transfers_cost': total_transfers_cost,
                             'wildcard_event': wildcard_event,
                             'bboost_event': bboost_event,
-                            'cxc_event': cxc_event
+                            'cxc_event': cxc_event,
+                            'last_value': last_value,
+                            'last_bank' : last_bank
                         })
 
                     # Sắp xếp theo tổng điểm từ cao đến thấp
@@ -220,7 +243,7 @@ def render_user_info(user_info):
     # Tạo HTML cho bảng thông tin người dùng
     html = "<h1>KANAMA FANTASY</h1>"
     html += "<table border='1'>"
-    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Home Points</th><th>Away Points</th><th>Event Transfers</th><th>Total Transfers Cost</th><th>WILDCARD</th><th>BBOOST</th><th>3CX</th></tr>"
+    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Home Points</th><th>Away Points</th><th>Event Transfers</th><th>Total Transfers Cost</th><th>WILDCARD</th><th>BBOOST</th><th>3CX</th><th>Last_value</th><th>Last_bank</th></tr>"
 
     for user in user_info:
         player_name = user['player_name']
@@ -233,7 +256,9 @@ def render_user_info(user_info):
         wildcard_event = user['wildcard_event']
         bboost_event = user['bboost_event']
         cxc_event = user['cxc_event']
-
+        last_bank = user['last_bank']
+        last_value = user['last_value']
+        
         # Thêm thông tin người dùng vào bảng
         html += "<tr>"
         html += f"<td>{entry_name}</td>"
@@ -246,6 +271,8 @@ def render_user_info(user_info):
         html += f"<td>{wildcard_event}</td>"
         html += f"<td>{bboost_event}</td>"
         html += f"<td>{cxc_event}</td>"
+        html += f"<td>{last_user}</td>"
+        html += f"<td>{last_bank}</td>"
         html += "</tr>"
 
     html += "</table>"
