@@ -3,12 +3,31 @@ import threading
 import requests
 import json
 import time
+from flask import request
+
 
 app = Flask(__name__)
 
 league_id = 169451
 
-
+def get_league_name(id):
+    url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
+    # Gửi yêu cầu GET đến API
+    response = requests.get(url)
+    # Kiểm tra xem yêu cầu có thành công không (status code 200)
+    if response.status_code == 200:
+        # Lấy dữ liệu JSON từ phản hồi
+        data = response.json()
+        # Kiểm tra xem dữ liệu có chứa thông tin standings không
+        if 'league' in data:
+            league_info = data['league']
+            # Kiểm tra xem có kết quả (results) nào trong standings hay không
+            if 'name' in league_info:
+                name = league_info['name']
+                return name
+    else:
+        print(f"Yêu cầu không thành công cho id {id}. Status code:", response.status_code)    
+        return None
 
 def generate_json_data():
 
@@ -44,6 +63,9 @@ def generate_json_data():
                           with open(f"{user_id}.json", "w") as file:
                             json.dump(user_data, file)
                           print(f"Dữ liệu cho user_id {user_id} đã được lưu vào file {user_id}.json")
+                          user_events = get_user_events_x(user_id)
+                          last_event = user_events[-1] if user_events else None
+                          get_user_picks_file(user_id,last_event['event'])
                     user_events = get_user_events_x(user_id)
                     last_event = user_events[-1] if user_events else None
                     get_events_file(last_event['event'])
@@ -60,7 +82,6 @@ def calculate_total_transfers_cost(user_id):
     for event in user_events:
         event_transfers_cost = event.get('event_transfers_cost', 0)
         total_transfers_cost += event_transfers_cost
-
     return total_transfers_cost
 
 def get_user_events(user_id):
@@ -77,6 +98,7 @@ def get_user_chips(user_id):
     if 'chips' in user_data:
         return user_data['chips']
     return []
+
 def get_user_events_x(user_id):
     user_events = []
     url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
@@ -144,14 +166,12 @@ def find_events_with_transfers_cost(user_id):
                 event_note += f",{event_number}"
             else:
                 event_note = f"{event_number}"
-
     return event_note
 
 def get_chip_event(user_chips, chip_name):
     for chip in user_chips:
         if chip['name'].lower() == chip_name.lower():
             return chip.get('event', '')
-
     return ''
 
 def get_user_chips_x(user_id):
@@ -193,20 +213,32 @@ def last_value_bank(user_id):
 
     return last_value/10.0, last_bank/10.0
 
-def get_events_file(event):
-    file_name = f"events_{event}.json"
-    url = f"https://fantasy.premierleague.com/api/event/{event}/live/"
-    
-    # Gửi yêu cầu GET đến API
-    response = requests.get(url)
-    # Kiểm tra xem yêu cầu có thành công không (status code 200)
-    if response.status_code == 200:
-        # Lấy dữ liệu JSON từ phản hồi
-        data = response.json()
-        with open(file_name, "w") as file:
-            json.dump(data, file)
+def get_events_file(gw_id):
+    for event in range(1, gw_id + 1):
+        file_name = f"events_{event}.json"
+        url = f"https://fantasy.premierleague.com/api/event/{event}/live/"
+        
+        # Gửi yêu cầu GET đến API
+        response = requests.get(url)
+        # Kiểm tra xem yêu cầu có thành công không (status code 200)
+        if response.status_code == 200:
+            # Lấy dữ liệu JSON từ phản hồi
+            data = response.json()
+            with open(file_name, "w") as file:
+                json.dump(data, file)
+        else:
+            print(f"Yêu cầu không thành công cho event {event}. Status code:", response.status_code)
+            return None
+
+def get_active_chip(user_id, event):
+    file_name = f"{user_id}_{str(event)}.json"
+    with open(file_name, "r") as file:
+        data = json.load(file)        
+    if 'active_chip' in data:
+        chip = data['active_chip']
+        return chip
     else:
-        print(f"Yêu cầu không thành công cho event {event}. Status code:", response.status_code)
+        print(f"Yêu cầu get chip không thành công cho {user_id} event {event}")
         return None
 
 def get_live_player_stats(event, user_picks):
@@ -223,8 +255,8 @@ def get_live_player_stats(event, user_picks):
             element_id = user_pick['element']
             multiplier = user_pick['multiplier']
             
-            # Kiểm tra điều kiện multiplier = 0
-            if multiplier == 1:
+            # Kiểm tra điều kiện multiplier !=0
+            if multiplier == 1 or multiplier == 2:
                 # Tìm thông tin về cầu thủ trong response của API
                 for player_info in data['elements']:
                     if player_info['id'] == element_id:
@@ -238,7 +270,85 @@ def get_live_player_stats(event, user_picks):
     else:
         print(f"Yêu cầu không thành công cho event {event}")
         return None
+def get_user_picks_file(user_id, event):
+    for gw_id in range(1, int(event)+1):
+        url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{gw_id}/picks/"
+        # Gửi yêu cầu GET đến API
+        response = requests.get(url)
+        # Kiểm tra xem yêu cầu có thành công không (status code 200)
+        if response.status_code == 200:
+            # Lấy dữ liệu JSON từ phản hồi
+            data = response.json()
+            with open(f"{user_id}_{gw_id}.json", "w") as file:
+                json.dump(data, file)
+        else:
+            print(f"Yêu cầu không thành công cho user_id {user_id}, event {gw_id}. Status code:", response.status_code)
 
+def get_user_picks(user_id, event):
+    with open(f"{user_id}_{event}.json", "r") as file:
+        data = json.load(file)
+    # Kiểm tra xem yêu cầu có thành công không (status code 200)
+    if data:
+        # Lấy dữ liệu JSON từ phản hồi
+        #data = response.json()
+        return data
+    else:
+        print(f"Yêu cầu không thành công cho user_id {user_id}, event {event}")
+        return None
+
+
+@app.route('/gw')
+def gw():
+    with open("league_id.json", "r") as file:
+        data = json.load(file)
+    
+    user_info = []
+    selected_event = int(request.args.get('selected_event', 0))  # Lấy event từ request, mặc định là 0 nếu không có
+    
+    if 'standings' in data:
+        standings_info = data['standings']
+        
+        if 'results' in standings_info:
+            results = standings_info['results']
+            
+            if results:
+                for result in results:
+                    user_id = result['entry']
+                    user_events = get_user_events_x(user_id)
+                    event_selected = user_events[selected_event-1] if user_events else None
+                    
+                    if event_selected:
+                        player_name = result.get('player_name', '')
+                        entry_name = result.get('entry_name', '')
+                        total_points = calculate_total_points(user_id)
+                        last_event_transfers_cost = event_selected.get('event_transfers_cost', 0)
+                        last_event_points = event_selected.get('points', 0) - last_event_transfers_cost
+                        event_transfers = event_selected.get('event_transfers', 0)
+
+                        # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
+                        user_picks = get_user_picks(user_id, event_selected['event'])
+                        active_chip= get_active_chip(user_id, event_selected['event'])
+                        if user_picks:
+                            # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
+                            total_goals_scored, total_assists  = get_live_player_stats(event_selected['event'], user_picks)
+                            
+                            user_info.append({
+                                'user_id': user_id,
+                                'player_name': player_name,
+                                'entry_name': entry_name,
+                                'total_points': total_points,
+                                'last_event_points': last_event_points,
+                                'last_event_transfers_cost': last_event_transfers_cost,
+                                'user_picks': user_picks,
+                                'total_goals_scored': total_goals_scored,
+                                'total_assists': total_assists,
+                                'active_chip': active_chip,
+                                'event_transfers': event_transfers
+                            })
+                # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
+                #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
+                user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
+    return render_live_info(user_info,get_league_name(league_id),event_selected['event'])
 
 @app.route('/live')
 def live():
@@ -263,12 +373,13 @@ def live():
                         player_name = result.get('player_name', '')
                         entry_name = result.get('entry_name', '')
                         total_points = calculate_total_points(user_id)
-                        last_event_points = last_event.get('points', 0)
                         last_event_transfers_cost = last_event.get('event_transfers_cost', 0)
+                        last_event_points = last_event.get('points', 0) - last_event_transfers_cost
+                        event_transfers = last_event.get('event_transfers', 0)
 
                         # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
                         user_picks = get_user_picks(user_id, last_event['event'])
-                        
+                        active_chip= get_active_chip(user_id, last_event['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
                             total_goals_scored, total_assists  = get_live_player_stats(last_event['event'], user_picks)
@@ -282,32 +393,17 @@ def live():
                                 'last_event_transfers_cost': last_event_transfers_cost,
                                 'user_picks': user_picks,
                                 'total_goals_scored': total_goals_scored,
-                                'total_assists': total_assists
+                                'total_assists': total_assists,
+                                'active_chip': active_chip,
+                                'event_transfers': event_transfers
                             })
-
                 # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
-                user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
-    
-    return render_live_info(user_info)
-
-def get_user_picks(user_id, event):
-    url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{event}/picks/"
-
-    # Gửi yêu cầu GET đến API
-    response = requests.get(url)
-
-    # Kiểm tra xem yêu cầu có thành công không (status code 200)
-    if response.status_code == 200:
-        # Lấy dữ liệu JSON từ phản hồi
-        data = response.json()
-        return data
-    else:
-        print(f"Yêu cầu không thành công cho user_id {user_id}, event {event}. Status code:", response.status_code)
-        return None
-
+                #user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], x['last_event_transfers_cost']), reverse=True)
+                user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['last_event_transfers_cost']), reverse=True)
+    return render_live_info(user_info,get_league_name(league_id),last_event['event'])
 
 # Thêm hàm render_live_info() để tạo HTML cho trang /live
-def render_live_info(user_info):
+def render_live_info(user_info,league_name,gw_id):
     html = "<html><head>"
     html += "<style>"
     html += "body {"
@@ -345,14 +441,18 @@ def render_live_info(user_info):
 
     # Header
     html += "<div id='header'>"
-    html += "<h1>KANAMA FANTASY - Live</h1>"
+    html += "<h1>" + league_name + " - GW " + str(gw_id) +  " - Live</h1>"
+    html += "<a href='/' style='color:#4CAF50; text-decoration:underline;'>Home</a><br>"
+    for event_id in range(1, gw_id+1):
+        html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration:underline;'>" + str(event_id) + "</a> "
+    html += "</div>"
     html += "</div>"
 
     # Table Container
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Last Event Points</th><th>Last Event Transfers Cost</th><th>Event Transfers</th><th>Goals</th><th>Assisst</th><th>User Picks</th></tr>"
+    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Points</th><th>Active Chip</th><th>Event Transfers</th><th>Transfers Cost</th><th>Total Goals(Not Bench)</th><th>Total Assisst(Not Bench)</th><th>User Picks</th></tr>"
     
     for user in user_info:
         player_name = user['player_name']
@@ -364,12 +464,14 @@ def render_live_info(user_info):
         total_goals_scored = user['total_goals_scored']
         total_assists = user['total_assists']
         user_picks = user['user_picks']
+        active_chip = user['active_chip']
     
         html += "<tr>"
         html += f"<td>{entry_name}</td>"
         html += f"<td>{player_name}</td>"
         html += f"<td>{total_points}</td>"
         html += f"<td>{last_event_points}</td>"
+        html += f"<td>{active_chip}</td>"        
         html += f"<td>{event_transfers}</td>"
         html += f"<td>{last_event_transfers_cost}</td>"        
         html += f"<td>{total_goals_scored}</td>"
@@ -437,35 +539,36 @@ def display_user_info():
 
                     # Sắp xếp theo tổng điểm từ cao đến thấp
                     user_info.sort(key=lambda x: x['total_points'], reverse=True)
-    return render_user_info(user_info)
+    return render_user_info(user_info,get_league_name(league_id))
 
-def render_user_info(user_info):
+def render_user_info(user_info, league_name):
     # Tạo HTML cho trang
     html = "<html><head>"
     html += "<style>"
     html += "body {"
-    html += "    margin: 0; /* Loại bỏ margin mặc định của body */"
-    html += "    padding: 0; /* Loại bỏ padding mặc định của body */"
-    html += "    font-family: Arial, sans-serif; /* Lựa chọn font chữ */"
+    html += "    margin: 0;"
+    html += "    padding: 0;"
+    html += "    font-family: Arial, sans-serif;"
     html += "    background-image: url('https://www.ncfsc.co.uk/wp-content/uploads/2023/05/FPL_Banner.png');"
     html += "    background-size: 20% auto;"
     html += "    background-repeat: no-repeat;"
-    html += "    background-position: left top; /* Đặt vị trí ảnh nền ở bên trái trên */"
+    html += "    background-position: left top;"
     html += "}"
     html += "#header {"
-    html += "    background-color: transparent; /* Đặt màu nền của header là trong suốt */"
-    html += "    text-align: center; /* Căn lề giữa */"
-    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
-    html += "    color: black; /* Màu chữ đen */"
+    html += "    background-color: transparent;"
+    html += "    text-align: center;"
+    html += "    padding: 20px;"
+    html += "    color: black;"
     html += "}"
     html += "#table-container {"
-    html += "    background-color: #4CAF50; /* Màu nền của table container */"
-    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
+    html += "    background-color: #4CAF50;"
+    html += "    padding: 20px;"
+    html += "    overflow-x: auto;"  # Thêm thuộc tính overflow-x để tạo thanh cuộn ngang nếu cần
     html += "}"
     html += "table {"
     html += "    border-collapse: collapse;"
     html += "    width: 100%;"
-    html += "    margin: 0 auto; /* Căn lề giữa */"
+    html += "    margin: 0 auto;"
     html += "}"
     html += "th, td {"
     html += "    border: 1px solid white;"
@@ -476,9 +579,9 @@ def render_user_info(user_info):
     html += "</style>"
     html += "</head><body>"
 
-    # Header
     html += "<div id='header'>"
-    html += "<h1>KANAMA FANTASY</h1>"
+    html += "<h1>" + league_name + "</h1>"
+    html += "<a href='/live' style='color:#4CAF50; text-decoration:underline;'>LIVE</a>"
     html += "</div>"
 
     # Table Container
@@ -524,7 +627,7 @@ def render_user_info(user_info):
 def generate_json_data_thread():
     while True:
         generate_json_data()
-        time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
+        time.sleep(3600)  # Chờ 10 phút (600 giây) trước khi chạy lại
 
 if __name__ == '__main__':
     thread = threading.Thread(target=generate_json_data_thread)
