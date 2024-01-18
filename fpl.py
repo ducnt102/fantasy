@@ -316,7 +316,7 @@ def gw():
                     user_id = result['entry']
                     user_events = get_user_events_x(user_id)
                     event_selected = user_events[selected_event-1] if user_events else None
-                    
+                    last_event = user_events[-1] if user_events else None
                     if event_selected:
                         player_name = result.get('player_name', '')
                         entry_name = result.get('entry_name', '')
@@ -348,7 +348,7 @@ def gw():
                 # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
-    return render_live_info(user_info,get_league_name(league_id),event_selected['event'])
+    return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
 
 @app.route('/live')
 def live():
@@ -403,7 +403,7 @@ def live():
     return render_live_info(user_info,get_league_name(league_id),last_event['event'])
 
 # Thêm hàm render_live_info() để tạo HTML cho trang /live
-def render_live_info(user_info,league_name,gw_id):
+def render_live_info(user_info,league_name,gw_id,last_gw):
     html = "<html><head>"
     html += "<style>"
     html += "body {"
@@ -441,9 +441,9 @@ def render_live_info(user_info,league_name,gw_id):
 
     # Header
     html += "<div id='header'>"
-    html += "<h1>" + league_name + " - GW " + str(gw_id) +  " - Live</h1>"
+    html += "<h1>" + league_name + " - GW " + str(gw_id) +  "</h1>"
     html += "<a href='/' style='color:#4CAF50; text-decoration:underline;'>Home</a><br>"
-    for event_id in range(1, gw_id+1):
+    for event_id in range(1, last_gw+1):
         html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration:underline;'>" + str(event_id) + "</a> "
     html += "</div>"
     html += "</div>"
