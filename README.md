@@ -7,5 +7,9 @@ Generate HTML-formatted tables and display them on port 19999.
 
 ```
 pip3 install requests flask
-python3 fpl.py
+python3 main.py
 ```
+
+**Sample:**
+
+http://113.190.44.146:19999/
