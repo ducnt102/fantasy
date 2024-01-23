@@ -38,7 +38,8 @@ def render_user_info(user_info, league_name):
 
     html += "<div id='header'>"
     html += "<h1>" + league_name + "</h1>"
-    html += "<a href='/live' style='color:#4CAF50; text-decoration:underline;'>LIVE</a>"
+    html += "<a href='/away' style='color:#4CAF50; text-decoration;'>Away </a>"
+    html += "<a href='/live' style='color:#4CAF50; text-decoration;'>    GW</a><br>"
     html += "</div>"
 
     # Table Container
@@ -119,9 +120,10 @@ def render_live_info(user_info,league_name,gw_id,last_gw):
     # Header
     html += "<div id='header'>"
     html += "<h1>" + league_name + " - GW " + str(gw_id) +  "</h1>"
-    html += "<a href='/' style='color:#4CAF50; text-decoration:underline;'>Home</a><br>"
+    html += "<a href='/' style='color:#4CAF50; text-decoration;'> Home </a>"
+    html += "<a href='/away' style='color:#4CAF50; text-decoration;'>    Away</a><br>"
     for event_id in range(1, last_gw+1):
-        html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration:underline;'>" + str(event_id) + "</a> "
+        html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration;'>" + str(event_id) + "</a> "
     html += "</div>"
     html += "</div>"
     # Table Container
@@ -161,3 +163,4 @@ def render_live_info(user_info,league_name,gw_id,last_gw):
     html += "</table>"
     html += "</body></html>"
     return html
+
