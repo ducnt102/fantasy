@@ -53,9 +53,17 @@ def find_events_with_transfers_cost(user_id):
     return event_note
 
 def get_chip_event(user_chips, chip_name):
-    for chip in user_chips:
-        if chip['name'].lower() == chip_name.lower():
-            return chip.get('event', '')
+    if chip_name.lower() != 'wildcard':
+        for chip in user_chips:
+            if chip['name'].lower() == chip_name.lower():
+                return chip.get('event', '')
+    else:
+        event_note=""
+        for chip in user_chips:
+            if chip['name'].lower() == chip_name.lower():
+                event_number=chip.get('event', '0')
+                event_note +=f"{event_number} "
+        return event_note
     return ''
 
 def last_value_bank(user_id):

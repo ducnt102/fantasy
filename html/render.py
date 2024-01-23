@@ -38,6 +38,7 @@ def render_user_info(user_info, league_name):
 
     html += "<div id='header'>"
     html += "<h1>" + league_name + "</h1>"
+    html += "<a href='/' style='color:#4CAF50; text-decoration;'>Home </a>"
     html += "<a href='/away' style='color:#4CAF50; text-decoration;'>Away </a>"
     html += "<a href='/live' style='color:#4CAF50; text-decoration;'>    GW</a><br>"
     html += "</div>"
