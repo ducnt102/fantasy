@@ -22,6 +22,7 @@ def get_league_name(league_id):
         return None
 
 def generate_json_data(league_id):
+    save_all_players_to_file()
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
     response = requests.get(url)
@@ -78,7 +79,7 @@ def get_user_events_x(user_id):
     return user_events
 
 def get_events_file(gw_id):
-    for event in range(1, gw_id + 1):
+    for event in range(1, int(gw_id) + 1):
         file_name = f"data/events_{event}.json"
         url = f"https://fantasy.premierleague.com/api/event/{event}/live/"
         # Gửi yêu cầu GET đến API
@@ -106,4 +107,21 @@ def get_user_picks_file(user_id, event):
                 json.dump(data, file)
         else:
             print(f"Yêu cầu không thành công cho user_id {user_id}, event {gw_id}. Status code:", response.status_code)
+
+def save_all_players_to_file(file_path='data/player_info.json'):
+    url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        elements = data.get('elements', [])
+        
+        player_info_dict = {player.get('id'): player.get('web_name') for player in elements}
+
+        with open(file_path, 'w') as file:
+            json.dump(player_info_dict, file, indent=4)
+
+        print(f"All player info saved successfully to {file_path}.")
+    else:
+        print(f"Error: {response.status_code}, {response.text}")
 

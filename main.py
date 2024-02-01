@@ -63,6 +63,7 @@ def gw():
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
     return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
   except Exception as e:
+    print(e)
     return redirect(url_for('serve_html'))
 
 @app.route('/live')
@@ -89,6 +90,11 @@ def live():
                         event_transfers = last_event.get('event_transfers', 0)
                         # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
                         user_picks = get_user_picks(user_id, last_event['event'])
+                        captain, vice_captain = get_captain_and_vice_captain(user_id, last_event['event'])
+                        captain_name = get_web_name_by_element_id(captain)
+                        captain_point = get_live_element_id(last_event['event'],captain) 
+                        vice_point = get_live_element_id(last_event['event'],vice_captain)
+                        vice_name = get_web_name_by_element_id(vice_captain)
                         active_chip= get_active_chip(user_id, last_event['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
@@ -104,13 +110,17 @@ def live():
                                 'total_goals_scored': total_goals_scored,
                                 'total_assists': total_assists,
                                 'active_chip': active_chip,
-                                'event_transfers': event_transfers
+                                'event_transfers': event_transfers,
+                                'captain_name': captain_name,
+                                'vice_name': vice_name,
+                                'captain_point': captain_point
                             })
                 # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
                 #user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], x['last_event_transfers_cost']), reverse=True)
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['last_event_transfers_cost']), reverse=True)
     return render_live_info(user_info,get_league_name(league_id),last_event['event'],last_event['event'])
   except Exception as e:
+    print(e)
     return redirect(url_for('serve_html'))
 # Thêm hàm render_live_info() để tạo HTML cho trang /live
 
@@ -165,6 +175,7 @@ def display_user_info():
                     user_info.sort(key=lambda x: x['total_points'], reverse=True)
     return render_user_info(user_info,get_league_name(league_id))
   except Exception as e:
+    print(e)
     return redirect(url_for('serve_html'))    
 
 @app.route('/away')
@@ -214,6 +225,7 @@ def display_away_info():
                     user_info.sort(key=lambda x: x['away_points'], reverse=True)
     return render_user_info(user_info,get_league_name(league_id))
   except Exception as e:
+    print(e)
     return redirect(url_for('serve_html'))
 
 @app.route('/error')

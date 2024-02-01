@@ -83,32 +83,37 @@ def render_user_info(user_info, league_name):
     return html
 
 
-def render_live_info(user_info,league_name,gw_id,last_gw):
+def render_live_info(user_info, league_name, gw_id, last_gw):
     html = "<html><head>"
     html += "<style>"
     html += "body {"
-    html += "    margin: 0; /* Loại bỏ margin mặc định của body */"
-    html += "    padding: 0; /* Loại bỏ padding mặc định của body */"
-    html += "    font-family: Arial, sans-serif; /* Lựa chọn font chữ */"
+    html += "    margin: 0;"
+    html += "    padding: 0;"
+    html += "    font-family: Arial, sans-serif;"
     html += "    background-image: url('https://www.ncfsc.co.uk/wp-content/uploads/2023/05/FPL_Banner.png');"
     html += "    background-size: 20% auto;"
     html += "    background-repeat: no-repeat;"
-    html += "    background-position: left top; /* Đặt vị trí ảnh nền ở bên trái trên */"
+    html += "    background-position: left top;"
     html += "}"
     html += "#header {"
-    html += "    background-color: transparent; /* Đặt màu nền của header là trong suốt */"
-    html += "    text-align: center; /* Căn lề giữa */"
-    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
-    html += "    color: black; /* Màu chữ đen */"
+    html += "    background-color: transparent;"
+    html += "    text-align: center;"
+    html += "    padding: 20px;"
+    html += "    color: black;"
+    html += "    position: relative;"
+    html += "    z-index: 1;"
     html += "}"
     html += "#table-container {"
-    html += "    background-color: #4CAF50; /* Màu nền của table container */"
-    html += "    padding: 20px; /* Khoảng cách giữa nội dung và mép */"
+    html += "    background-color: #4CAF50;"
+    html += "    padding: 20px;"
+    html += "    overflow-x: auto; /* Allow horizontal scrolling */"
+    html += "    position: relative;"
+    html += "    z-index: 0;"
     html += "}"
     html += "table {"
     html += "    border-collapse: collapse;"
     html += "    width: 100%;"
-    html += "    margin: 0 auto; /* Căn lề giữa */"
+    html += "    margin: 0 auto;"
     html += "}"
     html += "th, td {"
     html += "    border: 1px solid white;"
@@ -120,18 +125,18 @@ def render_live_info(user_info,league_name,gw_id,last_gw):
     html += "</head><body>"
     # Header
     html += "<div id='header'>"
-    html += "<h1>" + league_name + " - GW " + str(gw_id) +  "</h1>"
+    html += "<h1>" + league_name + " - GW " + str(gw_id) + "</h1>"
     html += "<a href='/' style='color:#4CAF50; text-decoration;'> Home </a>"
-    html += "<a href='/away' style='color:#4CAF50; text-decoration;'>    Away</a><br>"
-    for event_id in range(1, last_gw+1):
-        html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration;'>" + str(event_id) + "</a> "
-    html += "</div>"
+    html += "<a href='/away' style='color:#4CAF50; text-decoration;'> Away</a><br>"
+    for event_id in range(1, last_gw + 1):
+        html += "<a href='/gw?selected_event=" + str(event_id) + "' style='color:#4CAF50; text-decoration;'>" + str(
+            event_id) + "</a> "
     html += "</div>"
     # Table Container
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Points</th><th>Active Chip</th><th>Event Transfers</th><th>Transfers Cost</th><th>Total Goals(Not Bench)</th><th>Total Assisst(Not Bench)</th><th>User Picks</th></tr>"
+    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Points</th><th>Active Chip</th><th>Event Transfers</th><th>Transfers Cost</th><th>Total Goals(Not Bench)</th><th>Total Assists(Not Bench)</th><th>Captain</th><th>Vice</th><th>Captain Point</th></tr>"
     for user in user_info:
         player_name = user['player_name']
         entry_name = user['entry_name']
@@ -143,25 +148,25 @@ def render_live_info(user_info,league_name,gw_id,last_gw):
         total_assists = user['total_assists']
         user_picks = user['user_picks']
         active_chip = user['active_chip']
+        captain_name = user['captain_name']
+        vice_name = user['vice_name']
+        captain_point = user['captain_point']
         html += "<tr>"
         html += f"<td>{entry_name}</td>"
         html += f"<td>{player_name}</td>"
         html += f"<td>{total_points}</td>"
         html += f"<td>{last_event_points}</td>"
-        html += f"<td>{active_chip}</td>"        
+        html += f"<td>{active_chip}</td>"
         html += f"<td>{event_transfers}</td>"
-        html += f"<td>{last_event_transfers_cost}</td>"        
+        html += f"<td>{last_event_transfers_cost}</td>"
         html += f"<td>{total_goals_scored}</td>"
         html += f"<td>{total_assists}</td>"
-        # Hiển thị thông tin về các lựa chọn
-        html += "<td>"
-        for pick in user_picks['picks']:
-            element_id = pick['element']
-            html += f"{element_id}, "
-        html += "</td>"
-        
+        html += f"<td>{captain_name}</td>"
+        html += f"<td>{vice_name}</td>"
+        html += f"<td>{captain_point}</td>"
         html += "</tr>"
     html += "</table>"
     html += "</body></html>"
     return html
+
 

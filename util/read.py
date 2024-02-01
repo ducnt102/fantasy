@@ -64,3 +64,19 @@ def get_user_events(user_id):
         return user_data['current']
     return []
 
+def get_live_element_id(event, element_id):
+    file_name = f"data/events_{str(event)}.json"
+    total_point = 0
+    with open(file_name, "r") as file:
+        data = json.load(file)        
+    if data:
+        for player_info in data['elements']:
+                    if player_info['id'] == element_id:
+                        # Cộng dồn goals_scored và assists
+                        total_point = player_info['stats']['total_points']
+                        break
+        # Trả về tổng số goals_scored và assists
+        return total_point
+    else:
+        print(f"Yêu cầu không thành công cho event {event}")
+        return None

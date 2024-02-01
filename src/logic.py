@@ -81,3 +81,35 @@ def last_value_bank(user_id):
             last_value = value
             last_bank = bank
     return last_value/10.0, last_bank/10.0
+
+def get_web_name_by_element_id(element_id, file_path='data/player_info.json'):
+    try:
+        with open(file_path, 'r') as file:
+            player_info_dict = json.load(file)
+    except FileNotFoundError:
+        print(f"File {file_path} not found.")
+        return None
+
+    return player_info_dict.get(str(element_id))
+
+def get_captain_and_vice_captain(manager_id,event):
+    file_path= f'data/{manager_id}_{event}.json'
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        print(f"File {file_path} not found.")
+        return None, None
+
+    picks = data.get('picks', [])
+
+    captain_id = None
+    vice_captain_id = None
+
+    for pick in picks:
+        if pick.get('is_captain'):
+            captain_id = pick.get('element')
+        elif pick.get('is_vice_captain'):
+            vice_captain_id = pick.get('element')
+
+    return captain_id, vice_captain_id
