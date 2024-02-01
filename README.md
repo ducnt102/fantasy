@@ -12,4 +12,4 @@ python3 main.py
 
 **Sample:**
 
-http://113.190.44.146:19999/
+http://fantasy.io.vn/

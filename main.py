@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import threading
 import requests
 import json
@@ -17,6 +17,7 @@ league_id = 169451
 
 @app.route('/gw')
 def gw():
+  try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     user_info = []
@@ -61,9 +62,12 @@ def gw():
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
     return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
+  except Exception as e:
+    return redirect(url_for('serve_html'))
 
 @app.route('/live')
 def live():
+  try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     user_info = []
@@ -106,11 +110,13 @@ def live():
                 #user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], x['last_event_transfers_cost']), reverse=True)
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['last_event_transfers_cost']), reverse=True)
     return render_live_info(user_info,get_league_name(league_id),last_event['event'],last_event['event'])
-
+  except Exception as e:
+    return redirect(url_for('serve_html'))
 # Thêm hàm render_live_info() để tạo HTML cho trang /live
 
 @app.route('/')
 def display_user_info():
+  try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     user_info = []
@@ -158,9 +164,12 @@ def display_user_info():
                     # Sắp xếp theo tổng điểm từ cao đến thấp
                     user_info.sort(key=lambda x: x['total_points'], reverse=True)
     return render_user_info(user_info,get_league_name(league_id))
+  except Exception as e:
+    return redirect(url_for('serve_html'))    
 
 @app.route('/away')
 def display_away_info():
+  try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     user_info = []
@@ -204,6 +213,12 @@ def display_away_info():
                     # Sắp xếp theo tổng điểm từ cao đến thấp
                     user_info.sort(key=lambda x: x['away_points'], reverse=True)
     return render_user_info(user_info,get_league_name(league_id))
+  except Exception as e:
+    return redirect(url_for('serve_html'))
+
+@app.route('/error')
+def serve_html():
+    return send_from_directory('static', 'error.html')
 
 def generate_json_data_thread():
     while True:
