@@ -41,6 +41,12 @@ def gw():
                         event_transfers = event_selected.get('event_transfers', 0)
                         # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
                         user_picks = get_user_picks(user_id, event_selected['event'])
+                        captain, vice_captain = get_captain_and_vice_captain(user_id, last_event['event'])
+                        captain_name = get_web_name_by_element_id(captain)
+                        captain_point = get_live_element_id(last_event['event'],captain) 
+                        vice_point = get_live_element_id(last_event['event'],vice_captain)
+                        vice_name = get_web_name_by_element_id(vice_captain)
+                        active_chip= get_active_chip(user_id, last_event['event'])                        
                         active_chip= get_active_chip(user_id, event_selected['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
@@ -56,7 +62,10 @@ def gw():
                                 'total_goals_scored': total_goals_scored,
                                 'total_assists': total_assists,
                                 'active_chip': active_chip,
-                                'event_transfers': event_transfers
+                                'event_transfers': event_transfers,
+                                'captain_name': captain_name,
+                                'vice_name': vice_name,
+                                'captain_point': captain_point                                
                             })
                 # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
