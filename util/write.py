@@ -51,13 +51,11 @@ def generate_json_data(league_id):
                           # Lưu dữ liệu vào tệp JSON
                           with open(f"data/{user_id}.json", "w") as file:
                             json.dump(user_data, file)
-                          print(f"Dữ liệu cho user_id {user_id} đã được lưu vào file {user_id}.json")
                           user_events = get_user_events_x(user_id)
                           last_event = user_events[-1] if user_events else None
                           get_user_picks_file(user_id,last_event['event'])
-                    user_events = get_user_events_x(user_id)
-                    last_event = user_events[-1] if user_events else None
-                    get_events_file(last_event['event'])
+                          get_events_file(last_event['event'])
+                          print(f"Dữ liệu cho user_id {user_id},event {last_event['event']} đã được lưu vào file json")
                 else:
                     print(f"Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
 
