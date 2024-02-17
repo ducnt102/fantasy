@@ -26,6 +26,7 @@ def get_live_player_stats(event, user_picks):
     if data:
         total_goals_scored = 0
         total_assists = 0
+        live_user_points = 0
         # Duyệt qua từng lựa chọn của người chơi
         for user_pick in user_picks['picks']:
             element_id = user_pick['element']
@@ -38,9 +39,10 @@ def get_live_player_stats(event, user_picks):
                         # Cộng dồn goals_scored và assists
                         total_goals_scored += player_info['stats']['goals_scored']
                         total_assists += player_info['stats']['assists']
+                        live_user_points += player_info['stats']['total_points']
                         break
         # Trả về tổng số goals_scored và assists
-        return total_goals_scored, total_assists
+        return total_goals_scored, total_assists, live_user_points
     else:
         print(f"Yêu cầu không thành công cho event {event}")
         return None

@@ -50,7 +50,7 @@ def gw():
                         active_chip= get_active_chip(user_id, event_selected['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
-                            total_goals_scored, total_assists  = get_live_player_stats(event_selected['event'], user_picks)
+                            total_goals_scored, total_assists, event_points  = get_live_player_stats(event_selected['event'], user_picks)
                             user_info.append({
                                 'user_id': user_id,
                                 'player_name': player_name,
@@ -95,7 +95,7 @@ def live():
                         entry_name = result.get('entry_name', '')
                         total_points = calculate_total_points(user_id)
                         last_event_transfers_cost = last_event.get('event_transfers_cost', 0)
-                        last_event_points = last_event.get('points', 0) - last_event_transfers_cost
+                        #last_event_points = last_event.get('points', 0) - last_event_transfers_cost
                         event_transfers = last_event.get('event_transfers', 0)
                         # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
                         user_picks = get_user_picks(user_id, last_event['event'])
@@ -107,7 +107,8 @@ def live():
                         active_chip= get_active_chip(user_id, last_event['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
-                            total_goals_scored, total_assists  = get_live_player_stats(last_event['event'], user_picks)
+                            total_goals_scored, total_assists, last_event_points  = get_live_player_stats(last_event['event'], user_picks)
+                            last_event_points = last_event_points - last_event_transfers_cost + captain_point
                             user_info.append({
                                 'user_id': user_id,
                                 'player_name': player_name,
@@ -243,8 +244,14 @@ def serve_html():
 
 def generate_json_data_thread():
     while True:
-        generate_json_data(league_id)
-        time.sleep(600)  # Chờ 10 phút (600 giây) trước khi chạy lại
+        try: 
+            generate_json_data(league_id)
+            time.sleep(600)  # Chờ 10 phút (600 giây) trước khi chạy lại
+        except ConnectionError as e:
+            print(f"Error connecting to API: {e}")
+            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
+            continue
+            time.sleep(600)
 
 if __name__ == '__main__':
     thread = threading.Thread(target=generate_json_data_thread)
