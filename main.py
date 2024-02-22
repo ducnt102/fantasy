@@ -108,7 +108,7 @@ def live():
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
                             total_goals_scored, total_assists, last_event_points  = get_live_player_stats(last_event['event'], user_picks)
-                            last_event_points = last_event_points - last_event_transfers_cost + captain_point
+                            last_event_points = last_event_points - last_event_transfers_cost
                             user_info.append({
                                 'user_id': user_id,
                                 'player_name': player_name,

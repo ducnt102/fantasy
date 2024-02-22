@@ -32,14 +32,14 @@ def get_live_player_stats(event, user_picks):
             element_id = user_pick['element']
             multiplier = user_pick['multiplier']
             # Kiểm tra điều kiện multiplier !=0
-            if multiplier == 1 or multiplier == 2:
+            if multiplier == 1 or multiplier == 2 or multiplier == 3:
                 # Tìm thông tin về cầu thủ trong response của API
                 for player_info in data['elements']:
                     if player_info['id'] == element_id:
                         # Cộng dồn goals_scored và assists
                         total_goals_scored += player_info['stats']['goals_scored']
                         total_assists += player_info['stats']['assists']
-                        live_user_points += player_info['stats']['total_points']
+                        live_user_points += player_info['stats']['total_points'] * int(multiplier)
                         break
         # Trả về tổng số goals_scored và assists
         return total_goals_scored, total_assists, live_user_points
