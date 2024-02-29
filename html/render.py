@@ -46,7 +46,7 @@ def render_user_info(user_info, league_name):
     # Table Container
     html += "<div id='table-container'>"
     html += "<table>"
-    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Home Points</th><th>Away Points</th><th>Event Transfers</th><th>Total Transfers Cost</th><th>WILDCARD</th><th>BBOOST</th><th>3CX</th><th>Last_value</th><th>Last_bank</th></tr>"
+    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Home Points</th><th>Away Points</th><th>Event Transfers</th><th>Total Transfers Cost</th><th>WILDCARD</th><th>FREEHIT</th><th>BBOOST</th><th>3CX</th><th>Last_value</th><th>Last_bank</th></tr>"
 
     for user in user_info:
         player_name = user['player_name']
@@ -59,6 +59,7 @@ def render_user_info(user_info, league_name):
         wildcard_event = user['wildcard_event']
         bboost_event = user['bboost_event']
         cxc_event = user['cxc_event']
+        freehit_event = user['freehit_event']
         last_bank = user['last_bank']
         last_value = user['last_value']
 
@@ -72,6 +73,7 @@ def render_user_info(user_info, league_name):
         html += f"<td>{event_note}</td>"
         html += f"<td>{total_transfers_cost}</td>"
         html += f"<td>{wildcard_event}</td>"
+        html += f"<td>{freehit_event}</td>"
         html += f"<td>{bboost_event}</td>"
         html += f"<td>{cxc_event}</td>"
         html += f"<td>{last_value}</td>"

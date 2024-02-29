@@ -163,6 +163,7 @@ def display_user_info():
                         wildcard_event = get_chip_event(user_chips, 'wildcard')
                         bboost_event = get_chip_event(user_chips, 'bboost')
                         cxc_event = get_chip_event(user_chips, '3xc')
+                        freehit_event = get_chip_event(user_chips, 'freehit')
 
                         # Thêm thông tin người dùng vào danh sách
                         user_info.append({
@@ -178,7 +179,8 @@ def display_user_info():
                             'bboost_event': bboost_event,
                             'cxc_event': cxc_event,
                             'last_value': last_value,
-                            'last_bank' : last_bank
+                            'last_bank' : last_bank,
+                            'freehit_event': freehit_event
                         })
 
                     # Sắp xếp theo tổng điểm từ cao đến thấp
@@ -186,7 +188,7 @@ def display_user_info():
     return render_user_info(user_info,get_league_name(league_id))
   except Exception as e:
     print(e)
-    return redirect(url_for('serve_html'))    
+    return redirect(url_for('serve_html'))
 
 @app.route('/away')
 def display_away_info():
@@ -215,6 +217,7 @@ def display_away_info():
                         wildcard_event = get_chip_event(user_chips, 'wildcard')
                         bboost_event = get_chip_event(user_chips, 'bboost')
                         cxc_event = get_chip_event(user_chips, '3xc')
+                        freehit_event = get_chip_event(user_chips, 'freehit')
                         # Thêm thông tin người dùng vào danh sách
                         user_info.append({
                             'user_id': user_id,
@@ -229,7 +232,8 @@ def display_away_info():
                             'bboost_event': bboost_event,
                             'cxc_event': cxc_event,
                             'last_value': last_value,
-                            'last_bank' : last_bank
+                            'last_bank' : last_bank,
+                            'freehit_event': freehit_event
                         })
                     # Sắp xếp theo tổng điểm từ cao đến thấp
                     user_info.sort(key=lambda x: x['away_points'], reverse=True)
@@ -247,7 +251,7 @@ def generate_json_data_thread():
         try: 
             generate_json_data(league_id)
             time.sleep(600)  # Chờ 10 phút (600 giây) trước khi chạy lại
-        except ConnectionError as e:
+        except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
             continue
