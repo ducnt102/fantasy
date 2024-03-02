@@ -250,7 +250,7 @@ def generate_json_data_thread():
     while True:
         try: 
             generate_json_data(league_id)
-            time.sleep(600)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            time.sleep(180)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
