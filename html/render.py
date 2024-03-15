@@ -1,4 +1,5 @@
 def render_live_info(user_info, league_name, gw_id, last_gw):
+    # Tạo HTML cho trang
     html = "<html><head>"
     html += "<style>"
     html += "body {"
@@ -14,16 +15,12 @@ def render_live_info(user_info, league_name, gw_id, last_gw):
     html += "    background-color: transparent;"
     html += "    text-align: center;"
     html += "    padding: 20px;"
-    html += "    color: black;"
-    html += "    position: relative;"
-    html += "    z-index: 1;"
+    html += "    color: #4CAF50;" # Chữ màu đen
     html += "}"
     html += "#table-container {"
-    html += "    background-color: #4CAF50;"
+    html += "    background-color: transparent;"
     html += "    padding: 20px;"
-    html += "    overflow-x: auto; /* Allow horizontal scrolling */"
-    html += "    position: relative;"
-    html += "    z-index: 0;"
+    html += "    overflow-x: auto;"  # Thêm thuộc tính overflow-x để tạo thanh cuộn ngang nếu cần
     html += "}"
     html += "table {"
     html += "    border-collapse: collapse;"
@@ -34,7 +31,22 @@ def render_live_info(user_info, league_name, gw_id, last_gw):
     html += "    border: 1px solid white;"
     html += "    padding: 10px;"
     html += "    text-align: center;"
-    html += "    color: white;"
+    html += "    color: white;" # Mỗi một dòng tô các màu khác nhau và đan xen nhau là màu đen, xanh lá cây, xanh da trời
+    html += "}"
+    html += "th {"
+    html += "    font-weight: bold;" # Chữ chuyển sang in đậm
+    html += "}"
+    html += "tr.row-0 td {"
+    html += "    background-color: #13174B;" # Đen
+    html += "}"
+    html += "tr.row-1 td {"
+    html += "    background-color: #4CAF50;" # Xanh lá cây
+    html += "}"
+    html += "tr.row-2 td {"
+    html += "    background-color: #ED4D5E;" # Xanh da trời
+    html += "}"
+    html += "th.highlight {"
+    html += "    background-color: #ED4D5E;" # Màu nền #ED4D5E cho hàng TH
     html += "}"
     html += "</style>"
     html += "</head><body>"
@@ -51,8 +63,10 @@ def render_live_info(user_info, league_name, gw_id, last_gw):
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th>Entry Name</th><th>Player Name</th><th>Total Points</th><th>Points</th><th>Active Chip</th><th>Event Transfers</th><th>Transfers Cost</th><th>Total Goals(Not Bench)</th><th>Total Assists(Not Bench)</th><th>Captain</th><th>Vice</th><th>Captain Point</th></tr>"
-    for user in user_info:
+    html += "<tr><th class='highlight'>Entry Name</th><th class='highlight'>Player Name</th><th class='highlight'>Total Points</th><th class='highlight'>Points</th><th class='highlight'>Active Chip</th><th class='highlight'>Event Transfers</th><th class='highlight'>Transfers Cost</th><th class='highlight'>Total Goals(Not Bench)</th><th class='highlight'>Total Assists(Not Bench)</th><th class='highlight'>Captain</th><th class='highlight'>Vice</th><th class='highlight'>Captain Point</th></tr>"
+    #html += "<tr><th class='highlight'>Entry Name</th><th class='highlight'>Player Name</th><th class='highlight'>Total Points</th><th class='highlight'>Points</th><th class='highlight'>Active Chip</th><th class='highlight'>Event Transfers</th><th class='highlight'>Total Transfers Cost</th><th class='highlight'>WILDCARD</th><th class='highlight'>FREEHIT</th><th class='highlight'>BBOOST</th><th class='highlight'>3CX</th><th class='highlight'>Last_value</th><th class='highlight'>Last_bank</th></tr>"
+
+    for idx,user in enumerate(user_info):
         player_name = user['player_name']
         entry_name = user['entry_name']
         total_points = user['total_points']
@@ -66,7 +80,7 @@ def render_live_info(user_info, league_name, gw_id, last_gw):
         captain_name = user['captain_name']
         vice_name = user['vice_name']
         captain_point = user['captain_point']
-        html += "<tr>"
+        html += "<tr class='row-" + str(idx % 3) + "'>"
         html += f"<td>{entry_name}</td>"
         html += f"<td>{player_name}</td>"
         html += f"<td>{total_points}</td>"

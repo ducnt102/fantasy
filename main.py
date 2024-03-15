@@ -46,7 +46,7 @@ def gw():
                         captain_point = get_live_element_id(last_event['event'],captain) 
                         vice_point = get_live_element_id(last_event['event'],vice_captain)
                         vice_name = get_web_name_by_element_id(vice_captain)
-                        active_chip= get_active_chip(user_id, last_event['event'])                        
+                        active_chip= get_active_chip(user_id, last_event['event'])
                         active_chip= get_active_chip(user_id, event_selected['event'])
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
@@ -246,19 +246,45 @@ def display_away_info():
 def serve_html():
     return send_from_directory('static', 'error.html')
 
-def generate_json_data_thread():
+def generate_json_data_daily_thread():
     while True:
         try: 
-            generate_json_data(league_id)
-            time.sleep(180)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            generate_json_data_daily(league_id)
+            time.sleep(3600)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
             continue
-            time.sleep(600)
+            time.sleep(300)
+def generate_json_data_hourly_thread():
+    while True:
+        try: 
+            generate_json_data_hourly(league_id)
+            time.sleep(1200)  # Chờ 10 phút (600 giây) trước khi chạy lại
+        except Exception as e:
+            print(f"Error connecting to API: {e}")
+            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
+            continue
+            time.sleep(300)
+def generate_json_data_live_thread():
+    while True:
+        try: 
+            generate_json_data_live(league_id)
+            time.sleep(30)  # Chờ 10 phút (600 giây) trước khi chạy lại
+        except Exception as e:
+            print(f"Error connecting to API: {e}")
+            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
+            continue
+            time.sleep(120)
 
 if __name__ == '__main__':
-    thread = threading.Thread(target=generate_json_data_thread)
+    thread = threading.Thread(target=generate_json_data_daily_thread)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()
+    thread1 = threading.Thread(target=generate_json_data_hourly_thread)
+    thread1.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    thread1.start()
+    thread2 = threading.Thread(target=generate_json_data_live_thread)
+    thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    thread2.start()
     app.run(host='0.0.0.0',port=19999)
