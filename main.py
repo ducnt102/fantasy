@@ -41,10 +41,10 @@ def gw():
                         event_transfers = event_selected.get('event_transfers', 0)
                         # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
                         user_picks = get_user_picks(user_id, event_selected['event'])
-                        captain, vice_captain = get_captain_and_vice_captain(user_id, last_event['event'])
+                        captain, vice_captain = get_captain_and_vice_captain(user_id, event_selected['event'])
                         captain_name = get_web_name_by_element_id(captain)
-                        captain_point = get_live_element_id(last_event['event'],captain) 
-                        vice_point = get_live_element_id(last_event['event'],vice_captain)
+                        captain_point = get_live_element_id(event_selected['event'],captain) 
+                        vice_point = get_live_element_id(event_selected['event'],vice_captain)
                         vice_name = get_web_name_by_element_id(vice_captain)
                         active_chip= get_active_chip(user_id, last_event['event'])
                         active_chip= get_active_chip(user_id, event_selected['event'])
