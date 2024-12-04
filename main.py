@@ -12,7 +12,7 @@ from html.render import *
 
 app = Flask(__name__)
 
-league_id = 169451
+league_id = 460675
 
 
 @app.route('/gw')
