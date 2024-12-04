@@ -92,7 +92,7 @@ def generate_json_data_hourly(league_id):
                           user_events = get_user_events_x(user_id)
                           last_event = user_events[-1] if user_events else None
                           get_user_picks_file_live(user_id,last_event['event'])
-                          #get_events_file_live(last_event['event'])
+                          get_events_file_live(last_event['event'])
                           print(f"Hourly: Dữ liệu cho user_id {user_id}, event {last_event['event']} đã được lưu vào file json")
                 else:
                     print(f"Hourly: Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
