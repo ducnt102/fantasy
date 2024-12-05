@@ -48,7 +48,6 @@ def live():
 @app.route('/')
 def display_user_info():
   try:
-    current_event_id, finished_status = get_current_event()
     html_file_path = f"data/total.html"
     with open(html_file_path, "r") as html_file:
         html_content = html_file.read()
@@ -63,7 +62,6 @@ def display_user_info():
 @app.route('/away')
 def display_away_info():
   try:
-    current_event_id, finished_status = get_current_event()
     html_file_path = f"data/away.html"
     with open(html_file_path, "r") as html_file:
         html_content = html_file.read()
@@ -78,7 +76,6 @@ def display_away_info():
 @app.route('/home')
 def display_home_info():
   try:
-    current_event_id, finished_status = get_current_event()
     html_file_path = f"data/home.html"
     with open(html_file_path, "r") as html_file:
         html_content = html_file.read()
