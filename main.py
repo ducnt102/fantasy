@@ -40,7 +40,7 @@ def live():
         return html_content  # Return the HTML content as the response
   except FileNotFoundError:
     # If the file does not exist, return a 404 error
-    return f"<h1>Error 404: Gameweek {selected_event} not found.</h1>", 404
+    return f"<h1>Error 404: Gameweek {current_event_id} not found.</h1>", 404
   except Exception as e:
     print(e)
     return redirect(url_for('serve_html'))
