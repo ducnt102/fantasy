@@ -267,9 +267,6 @@ def get_current_event(api_url="https://fantasy.premierleague.com/api/bootstrap-s
         print(f"Error fetching data: {e}")
         return None, None
 
-# Example usage
-#current_event_id, finished_status = get_current_event()
-
 
 def render_old_gw_to_file(league_id):
   try:
@@ -343,7 +340,7 @@ def render_live_gw_to_file(league_id):
     if finished_status == True:
         print(f"GW {gw_id} HAS FINISHED ===========================>")
         return
-    gw_id = current_event_id + 1
+    gw_id = current_event_id
     print(f"RENDER LIVE HTML FILE================================> {gw_id}")
     user_info = []
     if 'standings' in data:
@@ -397,7 +394,6 @@ def render_live_gw_to_file(league_id):
                 output_file = 'data/' + 'gw_' + str(gw_id) + '.html'
                 with open(output_file, "w") as file:
                     file.write(render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event']))
-    #return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
   except Exception as e:
     print(e)
 

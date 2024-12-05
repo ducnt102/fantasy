@@ -13,3 +13,24 @@ python3 main.py
 **Sample:**
 
 http://fantasy.io.vn/
+
+
+# DATA JSON
+## data/league.json
+    Stores all football managers in your league.
+## data/player_info.json
+    Stores all football player information.
+## data/events_<GW>.json
+    Stores all events for the specified Gameweek (GW).
+## data/<userid>.json
+    Stores the scores of a user from GW 1 to the current Gameweek.
+## data/<userid>_<GW>.json
+    Stores all football players selected by the user for the specified Gameweek.
+## data/html_<GW>.json
+    Caches all HTML tables for your league for the specified Gameweek.
+
+# Update
+    job auto update json data file and update HTML
+
+
+

@@ -165,19 +165,9 @@ def generate_json_data_daily_thread():
             time.sleep(3600*24)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
+            # Nếu gặp lỗi kết nối, chờ 2 phút trước khi thử lại
             continue
-            time.sleep(600)
-def generate_json_data_hourly_thread():
-    while True:
-        try: 
-            generate_json_data_hourly(league_id)
-            time.sleep(1200)  # Chờ 10 phút (600 giây) trước khi chạy lại
-        except Exception as e:
-            print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
-            continue
-            time.sleep(600)
+            time.sleep(120)
 def generate_json_data_live_thread():
     while True:
         try: 
@@ -195,9 +185,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=generate_json_data_daily_thread)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()
-    #thread1 = threading.Thread(target=generate_json_data_hourly_thread)
-    #thread1.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    #thread1.start()
+
     thread2 = threading.Thread(target=generate_json_data_live_thread)
     thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread2.start()
