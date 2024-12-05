@@ -159,10 +159,11 @@ def serve_html():
 
 def generate_json_data_daily_thread():
     while True:
-        try: 
+        try:
+            save_fixtures_to_file()
             render_old_gw_to_file(league_id)
             generate_json_data_daily(league_id)
-            time.sleep(3600*24)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            time.sleep(3600*24)  # Chờ 1 ngày trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 2 phút trước khi thử lại
@@ -181,11 +182,11 @@ def generate_json_data_live_thread():
             time.sleep(120)
 
 if __name__ == '__main__':
-    #render_old_gw_to_file(league_id)
+
     thread = threading.Thread(target=generate_json_data_daily_thread)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()
-
+    time.sleep(10)
     thread2 = threading.Thread(target=generate_json_data_live_thread)
     thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread2.start()

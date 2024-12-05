@@ -3,6 +3,7 @@ import requests
 import json
 from html.render import *
 from src.logic import *
+import time
 
 def get_league_name(league_id):
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
@@ -106,8 +107,9 @@ def generate_json_data_hourly(league_id):
 def generate_json_data_live(league_id):
     # using to update <user_id>.json and <userid>_<current_event_id>.json to live
     current_event_id, finished_status = get_current_event()
-    if finished_status == True:
-        print(f"LIVE ====> GW {current_event_id} is FINISHED!!!!!!!!!!!")
+    running = check_fixtures_match_running(current_event_id)
+    if finished_status == True or running == False:
+        print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
     get_events_file_live(current_event_id)
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
@@ -237,6 +239,20 @@ def save_all_players_to_file(file_path='data/player_info.json'):
     else:
         print(f"Error: {response.status_code}, {response.text}")
 
+def save_fixtures_to_file(file_path='data/fixtures.json'):
+    url = 'https://fantasy.premierleague.com/api/fixtures/'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        with open(file_path, 'w') as file:
+            json.dump(data, file, indent=4)
+
+        print(f"All fixtures info saved successfully to {file_path}.")
+    else:
+        print(f"Error: {response.status_code}, {response.text}")
+
+
 def get_current_event(api_url="https://fantasy.premierleague.com/api/bootstrap-static/"):
     """
     Fetch the current event ID and its 'finished' status from the FPL API.
@@ -270,12 +286,12 @@ def get_current_event(api_url="https://fantasy.premierleague.com/api/bootstrap-s
 
 def render_old_gw_to_file(league_id):
   try:
-    print("RENDER ALL HTML FILE================================>")
+    #print("RENDER ALL HTML FILE================================>")
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
     for gw_id in range(1, current_event_id+1):
-        #print(f"RENDER ALL HTML FILE================================> {gw_id}")
+        print(f"RENDER ALL HTML FILE================================> {gw_id}")
         user_info = []
         if 'standings' in data:
             standings_info = data['standings']
@@ -337,11 +353,12 @@ def render_live_gw_to_file(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    if finished_status == True:
-        print(f"GW {gw_id} HAS FINISHED ===========================>")
-        return
+    running = check_fixtures_match_running(current_event_id)
+    if finished_status == True or running == False:
+        print(f"HTML LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
+        return    
     gw_id = current_event_id
-    print(f"RENDER LIVE HTML FILE================================> {gw_id}")
+    print(f"RENDER LIVE HTML FILE ================================> {gw_id}")
     user_info = []
     if 'standings' in data:
         standings_info = data['standings']
@@ -397,3 +414,34 @@ def render_live_gw_to_file(league_id):
   except Exception as e:
     print(e)
 
+def check_fixtures_match_running(gw_id):
+    """
+    Reads a JSON file and checks if any event satisfies the following conditions:
+    - event == gw_id
+    - finished == False
+    - started == True
+
+    Args:
+    - gw_id (int): The Gameweek ID to check.
+
+    Returns:
+    - bool: True if conditions are met, False otherwise.
+    """
+    try:
+        file_path = "data/fixtures.json"
+        with open(file_path, "r") as file:
+            data = json.load(file)  # Load JSON data
+
+            for event in data:  # Iterate through the list of events
+                if (
+                    event.get("event") == gw_id and
+                    event.get("finished") is False and
+                    event.get("started") is True
+                ):
+                    return True  # Return True if all conditions are met
+
+        return False  # Return False if no matching event is found
+
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Error reading the file: {e}")
+        return False
