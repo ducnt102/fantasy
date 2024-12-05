@@ -445,3 +445,159 @@ def check_fixtures_match_running(gw_id):
     except (json.JSONDecodeError, FileNotFoundError) as e:
         print(f"Error reading the file: {e}")
         return False
+    
+def render_away_to_file(league_id):
+  try:
+    with open("data/league_id.json", "r") as file:
+        data = json.load(file)
+    user_info = []
+    # Kiểm tra xem dữ liệu có chứa thông tin standings không
+    if 'standings' in data:
+            standings_info = data['standings']
+            # Kiểm tra xem có kết quả (results) nào trong standings hay không
+            if 'results' in standings_info:
+                results = standings_info['results']
+                # Kiểm tra xem danh sách kết quả có rỗng không
+                if results:
+                    for result in results:
+                        user_id = result['entry']
+                        total_points = calculate_total_points(user_id)
+                        home_points, away_points = calculate_home_away_points(user_id)
+                        last_value, last_bank = last_value_bank(user_id)
+                        player_name = result.get('player_name', '')
+                        entry_name = result.get('entry_name', '')
+                        event_note = find_events_with_transfers_cost(user_id)
+                        total_transfers_cost = calculate_total_transfers_cost(user_id)
+                        user_chips = get_user_chips(user_id)
+                        wildcard_event = get_chip_event(user_chips, 'wildcard')
+                        bboost_event = get_chip_event(user_chips, 'bboost')
+                        cxc_event = get_chip_event(user_chips, '3xc')
+                        freehit_event = get_chip_event(user_chips, 'freehit')
+                        # Thêm thông tin người dùng vào danh sách
+                        user_info.append({
+                            'user_id': user_id,
+                            'total_points': total_points,
+                            'home_points': home_points,
+                            'away_points': away_points,
+                            'player_name': player_name,
+                            'entry_name': entry_name,
+                            'event_note': event_note,
+                            'total_transfers_cost': total_transfers_cost,
+                            'wildcard_event': wildcard_event,
+                            'bboost_event': bboost_event,
+                            'cxc_event': cxc_event,
+                            'last_value': last_value,
+                            'last_bank' : last_bank,
+                            'freehit_event': freehit_event
+                        })
+                    # Sắp xếp theo tổng điểm từ cao đến thấp
+                    user_info.sort(key=lambda x: x['away_points'], reverse=True)
+                    output_file = 'data/away.html'
+                    with open(output_file, "w") as file:
+                        file.write(render_user_info(user_info,get_league_name(league_id)))
+  except Exception as e:
+    print(e)
+
+def render_home_to_file(league_id):
+  try:
+    with open("data/league_id.json", "r") as file:
+        data = json.load(file)
+    user_info = []
+    # Kiểm tra xem dữ liệu có chứa thông tin standings không
+    if 'standings' in data:
+            standings_info = data['standings']
+            # Kiểm tra xem có kết quả (results) nào trong standings hay không
+            if 'results' in standings_info:
+                results = standings_info['results']
+                # Kiểm tra xem danh sách kết quả có rỗng không
+                if results:
+                    for result in results:
+                        user_id = result['entry']
+                        total_points = calculate_total_points(user_id)
+                        home_points, away_points = calculate_home_away_points(user_id)
+                        last_value, last_bank = last_value_bank(user_id)
+                        player_name = result.get('player_name', '')
+                        entry_name = result.get('entry_name', '')
+                        event_note = find_events_with_transfers_cost(user_id)
+                        total_transfers_cost = calculate_total_transfers_cost(user_id)
+                        user_chips = get_user_chips(user_id)
+                        wildcard_event = get_chip_event(user_chips, 'wildcard')
+                        bboost_event = get_chip_event(user_chips, 'bboost')
+                        cxc_event = get_chip_event(user_chips, '3xc')
+                        freehit_event = get_chip_event(user_chips, 'freehit')
+                        # Thêm thông tin người dùng vào danh sách
+                        user_info.append({
+                            'user_id': user_id,
+                            'total_points': total_points,
+                            'home_points': home_points,
+                            'away_points': away_points,
+                            'player_name': player_name,
+                            'entry_name': entry_name,
+                            'event_note': event_note,
+                            'total_transfers_cost': total_transfers_cost,
+                            'wildcard_event': wildcard_event,
+                            'bboost_event': bboost_event,
+                            'cxc_event': cxc_event,
+                            'last_value': last_value,
+                            'last_bank' : last_bank,
+                            'freehit_event': freehit_event
+                        })
+                    # Sắp xếp theo tổng điểm từ cao đến thấp
+                    user_info.sort(key=lambda x: x['home_points'], reverse=True)
+                    output_file = 'data/home.html'
+                    with open(output_file, "w") as file:
+                        file.write(render_user_info(user_info,get_league_name(league_id)))
+  except Exception as e:
+    print(e)
+
+def render_total_to_file(league_id):
+  try:
+    with open("data/league_id.json", "r") as file:
+        data = json.load(file)
+    user_info = []
+    # Kiểm tra xem dữ liệu có chứa thông tin standings không
+    if 'standings' in data:
+            standings_info = data['standings']
+            # Kiểm tra xem có kết quả (results) nào trong standings hay không
+            if 'results' in standings_info:
+                results = standings_info['results']
+                # Kiểm tra xem danh sách kết quả có rỗng không
+                if results:
+                    for result in results:
+                        user_id = result['entry']
+                        total_points = calculate_total_points(user_id)
+                        home_points, away_points = calculate_home_away_points(user_id)
+                        last_value, last_bank = last_value_bank(user_id)
+                        player_name = result.get('player_name', '')
+                        entry_name = result.get('entry_name', '')
+                        event_note = find_events_with_transfers_cost(user_id)
+                        total_transfers_cost = calculate_total_transfers_cost(user_id)
+                        user_chips = get_user_chips(user_id)
+                        wildcard_event = get_chip_event(user_chips, 'wildcard')
+                        bboost_event = get_chip_event(user_chips, 'bboost')
+                        cxc_event = get_chip_event(user_chips, '3xc')
+                        freehit_event = get_chip_event(user_chips, 'freehit')
+                        # Thêm thông tin người dùng vào danh sách
+                        user_info.append({
+                            'user_id': user_id,
+                            'total_points': total_points,
+                            'home_points': home_points,
+                            'away_points': away_points,
+                            'player_name': player_name,
+                            'entry_name': entry_name,
+                            'event_note': event_note,
+                            'total_transfers_cost': total_transfers_cost,
+                            'wildcard_event': wildcard_event,
+                            'bboost_event': bboost_event,
+                            'cxc_event': cxc_event,
+                            'last_value': last_value,
+                            'last_bank' : last_bank,
+                            'freehit_event': freehit_event
+                        })
+                    # Sắp xếp theo tổng điểm từ cao đến thấp
+                    user_info.sort(key=lambda x: x['total_points'], reverse=True)
+                    output_file = 'data/total.html'
+                    with open(output_file, "w") as file:
+                        file.write(render_user_info(user_info,get_league_name(league_id)))
+  except Exception as e:
+    print(e)
