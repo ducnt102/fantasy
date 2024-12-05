@@ -160,8 +160,8 @@ def serve_html():
 def generate_json_data_daily_thread():
     while True:
         try: 
-            generate_json_data_daily(league_id)
             render_old_gw_to_file(league_id)
+            generate_json_data_daily(league_id)
             time.sleep(3600*24)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
@@ -181,8 +181,8 @@ def generate_json_data_hourly_thread():
 def generate_json_data_live_thread():
     while True:
         try: 
-            generate_json_data_live(league_id)
             render_live_gw_to_file(league_id)
+            generate_json_data_live(league_id)
             time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
