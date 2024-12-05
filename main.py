@@ -18,59 +18,14 @@ league_id = 460675
 @app.route('/gw')
 def gw():
   try:
-    with open("data/league_id.json", "r") as file:
-        data = json.load(file)
-    user_info = []
     selected_event = int(request.args.get('selected_event', 0))  # Lấy event từ request, mặc định là 0 nếu không có
-    if 'standings' in data:
-        standings_info = data['standings']
-        if 'results' in standings_info:
-            results = standings_info['results']
-            if results:
-                for result in results:
-                    user_id = result['entry']
-                    user_events = get_user_events_x(user_id)
-                    event_selected = user_events[selected_event-1] if user_events else None
-                    last_event = user_events[-1] if user_events else None
-                    if event_selected:
-                        player_name = result.get('player_name', '')
-                        entry_name = result.get('entry_name', '')
-                        total_points = calculate_total_points(user_id)
-                        last_event_transfers_cost = event_selected.get('event_transfers_cost', 0)
-                        last_event_points = event_selected.get('points', 0) - last_event_transfers_cost
-                        event_transfers = event_selected.get('event_transfers', 0)
-                        # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
-                        user_picks = get_user_picks(user_id, event_selected['event'])
-                        captain, vice_captain = get_captain_and_vice_captain(user_id, event_selected['event'])
-                        captain_name = get_web_name_by_element_id(captain)
-                        captain_point = get_live_element_id(event_selected['event'],captain) 
-                        vice_point = get_live_element_id(event_selected['event'],vice_captain)
-                        vice_name = get_web_name_by_element_id(vice_captain)
-                        active_chip= get_active_chip(user_id, last_event['event'])
-                        active_chip= get_active_chip(user_id, event_selected['event'])
-                        if user_picks:
-                            # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
-                            total_goals_scored, total_assists, event_points  = get_live_player_stats(event_selected['event'], user_picks)
-                            user_info.append({
-                                'user_id': user_id,
-                                'player_name': player_name,
-                                'entry_name': entry_name,
-                                'total_points': total_points,
-                                'last_event_points': last_event_points,
-                                'last_event_transfers_cost': last_event_transfers_cost,
-                                'user_picks': user_picks,
-                                'total_goals_scored': total_goals_scored,
-                                'total_assists': total_assists,
-                                'active_chip': active_chip,
-                                'event_transfers': event_transfers,
-                                'captain_name': captain_name,
-                                'vice_name': vice_name,
-                                'captain_point': captain_point                                
-                            })
-                # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
-                #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
-                user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
-    return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
+    html_file_path = f"data/gw_{selected_event}.html"
+    with open(html_file_path, "r") as html_file:
+        html_content = html_file.read()
+        return html_content  # Return the HTML content as the response
+  except FileNotFoundError:
+    # If the file does not exist, return a 404 error
+    return f"<h1>Error 404: Gameweek {selected_event} not found.</h1>", 404
   except Exception as e:
     print(e)
     return redirect(url_for('serve_html'))
@@ -78,61 +33,17 @@ def gw():
 @app.route('/live')
 def live():
   try:
-    with open("data/league_id.json", "r") as file:
-        data = json.load(file)
-    user_info = []
-    if 'standings' in data:
-        standings_info = data['standings']
-        if 'results' in standings_info:
-            results = standings_info['results']
-            if results:
-                for result in results:
-                    user_id = result['entry']
-                    user_events = get_user_events_x(user_id)
-                    last_event = user_events[-1] if user_events else None
-                    if last_event:
-                        player_name = result.get('player_name', '')
-                        entry_name = result.get('entry_name', '')
-                        total_points = calculate_total_points(user_id)
-                        last_event_transfers_cost = last_event.get('event_transfers_cost', 0)
-                        #last_event_points = last_event.get('points', 0) - last_event_transfers_cost
-                        event_transfers = last_event.get('event_transfers', 0)
-                        # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
-                        user_picks = get_user_picks(user_id, last_event['event'])
-                        captain, vice_captain = get_captain_and_vice_captain(user_id, last_event['event'])
-                        captain_name = get_web_name_by_element_id(captain)
-                        captain_point = get_live_element_id(last_event['event'],captain) 
-                        vice_point = get_live_element_id(last_event['event'],vice_captain)
-                        vice_name = get_web_name_by_element_id(vice_captain)
-                        active_chip= get_active_chip(user_id, last_event['event'])
-                        if user_picks:
-                            # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
-                            total_goals_scored, total_assists, last_event_points  = get_live_player_stats(last_event['event'], user_picks)
-                            last_event_points = last_event_points - last_event_transfers_cost
-                            user_info.append({
-                                'user_id': user_id,
-                                'player_name': player_name,
-                                'entry_name': entry_name,
-                                'total_points': total_points,
-                                'last_event_points': last_event_points,
-                                'last_event_transfers_cost': last_event_transfers_cost,
-                                'user_picks': user_picks,
-                                'total_goals_scored': total_goals_scored,
-                                'total_assists': total_assists,
-                                'active_chip': active_chip,
-                                'event_transfers': event_transfers,
-                                'captain_name': captain_name,
-                                'vice_name': vice_name,
-                                'captain_point': captain_point
-                            })
-                # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
-                #user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], x['last_event_transfers_cost']), reverse=True)
-                user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['last_event_transfers_cost']), reverse=True)
-    return render_live_info(user_info,get_league_name(league_id),last_event['event'],last_event['event'])
+    current_event_id, finished_status = get_current_event()
+    html_file_path = f"data/gw_{current_event_id}.html"
+    with open(html_file_path, "r") as html_file:
+        html_content = html_file.read()
+        return html_content  # Return the HTML content as the response
+  except FileNotFoundError:
+    # If the file does not exist, return a 404 error
+    return f"<h1>Error 404: Gameweek {selected_event} not found.</h1>", 404
   except Exception as e:
     print(e)
     return redirect(url_for('serve_html'))
-# Thêm hàm render_live_info() để tạo HTML cho trang /live
 
 @app.route('/')
 def display_user_info():
@@ -250,12 +161,13 @@ def generate_json_data_daily_thread():
     while True:
         try: 
             generate_json_data_daily(league_id)
-            time.sleep(3600)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            render_old_gw_to_file(league_id)
+            time.sleep(3600*24)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
             continue
-            time.sleep(300)
+            time.sleep(600)
 def generate_json_data_hourly_thread():
     while True:
         try: 
@@ -265,12 +177,13 @@ def generate_json_data_hourly_thread():
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
             continue
-            time.sleep(300)
+            time.sleep(600)
 def generate_json_data_live_thread():
     while True:
         try: 
             generate_json_data_live(league_id)
-            time.sleep(30)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            render_live_gw_to_file(league_id)
+            time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
         except Exception as e:
             print(f"Error connecting to API: {e}")
             # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
@@ -278,12 +191,13 @@ def generate_json_data_live_thread():
             time.sleep(120)
 
 if __name__ == '__main__':
+    #render_old_gw_to_file(league_id)
     thread = threading.Thread(target=generate_json_data_daily_thread)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()
-    thread1 = threading.Thread(target=generate_json_data_hourly_thread)
-    thread1.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    thread1.start()
+    #thread1 = threading.Thread(target=generate_json_data_hourly_thread)
+    #thread1.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    #thread1.start()
     thread2 = threading.Thread(target=generate_json_data_live_thread)
     thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread2.start()
