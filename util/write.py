@@ -4,6 +4,7 @@ import json
 from html.render import *
 from src.logic import *
 import time
+from datetime import datetime, timedelta, timezone
 
 def get_league_name(league_id):
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
@@ -107,8 +108,8 @@ def generate_json_data_hourly(league_id):
 def generate_json_data_live(league_id):
     # using to update <user_id>.json and <userid>_<current_event_id>.json to live
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running(current_event_id)
-    if finished_status == True or running == False:
+    running = check_fixtures_match_running_v2(current_event_id)
+    if running == True:
         print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
     get_events_file_live(current_event_id)
@@ -353,8 +354,8 @@ def render_live_gw_to_file(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running(current_event_id)
-    if finished_status == True or running == False:
+    running = check_fixtures_match_running_v2(current_event_id)
+    if running == False:    
         print(f"HTML LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return    
     gw_id = current_event_id
@@ -441,6 +442,38 @@ def check_fixtures_match_running(gw_id):
                     return True  # Return True if all conditions are met
 
         return False  # Return False if no matching event is found
+
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Error reading the file: {e}")
+        return False
+def check_fixtures_match_running_v2(gw_id):
+    """
+    Reads a JSON file and checks if any events have a kickoff time where the current time falls within:
+    - kickoff_time - 1 hour to kickoff_time + 3 hours.
+
+    Args:
+    - gw_id (int): The Gameweek ID to check.
+
+    Returns:
+    - list: A list of kickoff times where the current time is within the specified range.
+    """
+    try:
+        file_path = "data/fixtures.json"
+        with open(file_path, "r") as file:
+            data = json.load(file)  # Load JSON data
+
+        current_time = datetime.now(timezone.utc)
+        matching_kickoff_times = []
+
+        for event in data:
+            if event.get("event") == gw_id:  # Check the event ID matches the GW ID
+                kickoff_time_str = event.get("kickoff_time")
+                if kickoff_time_str:
+                    kickoff_time = datetime.fromisoformat(kickoff_time_str.replace("Z", "+00:00"))
+                    # Check if current_time is within the range
+                    if ( kickoff_time >= current_time - timedelta(hours=10)) and (kickoff_time <= current_time + timedelta(hours=1)):
+                        return True
+        return False  # Return list of matching kickoff times
 
     except (json.JSONDecodeError, FileNotFoundError) as e:
         print(f"Error reading the file: {e}")

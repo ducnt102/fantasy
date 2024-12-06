@@ -108,7 +108,7 @@ def generate_json_data_daily_thread():
             time.sleep(120)
 def generate_json_data_live_thread():
     while True:
-        try: 
+        try:
             render_live_gw_to_file(league_id)
             generate_json_data_live(league_id)
             time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
