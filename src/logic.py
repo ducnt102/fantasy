@@ -269,7 +269,17 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # Ensure exactly 11 players in starters
     if len(starters) != 11:
-        raise ValueError("Initial starters must be exactly 11 players.")
+        for player in starters:
+            bb += player["point"] * player["multiplier"]
+        return {
+            "final_11": 'BBOOST',
+            "substitutions": "BBOOST",
+            "total_points": bb,
+            "change_log": "BBOOST",
+            "bonus_log": "BBOOST",
+            "live_bps_log": "BBOOST"
+        }
+        #raise ValueError("Initial starters must be exactly 11 players.")
 
     # Formation requirements
     required_formation = {
@@ -278,7 +288,7 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
         "3": 2,  # MID
         "4": 1,  # FWD
     }
-    max_formation = {
+    max_formation = {   
         "1": 1,  # GK
         "2": 5,  # DEF
         "3": 5,  # MID
@@ -303,17 +313,17 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
     if captain and captain["minutes"] == 0 and captain["running"]:
         # Apply vice-captain points if captain does not play
         if vice_captain:
-            vice_captain_points = vice_captain["point"] * ( captain["multiplier"] - 1)
+            vice_captain_points = ( vice_captain["point"] - vice_captain['bonus'] + vice_captain['expected_bonus'] )* ( captain["multiplier"] - 1)
             total_points += vice_captain_points
     elif captain:
         # Apply captain points if they play
-        captain_points = captain["point"] * captain["multiplier"]
+        captain_points = ( captain["point"] - captain['bonus'] + captain['expected_bonus'] ) * captain["multiplier"]
         total_points += captain_points
 
     # Apply points for other starters
     for player in starters:
         if not player["is_captain"]:
-            total_points += player["point"] * player["multiplier"]
+            total_points += ( player["point"] - player['bonus'] + player['expected_bonus']  ) * player["multiplier"]
 
 
     # Log of substitutions and changes
@@ -347,7 +357,7 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
                 #sub_player["multiplier"] = sub["multiplier"]  # Use multiplier of the replaced player
                 formation[str(sub_player["element_type"])] += 1
                 substitutes.remove(sub_player)
-                total_points = total_points + sub_player["point"]
+                total_points = total_points + sub_player["point"] - sub_player['bonus'] + sub_player['expected_bonus'] 
 
                 # Log the substitution
                 change_log.append(
