@@ -1,4 +1,6 @@
 import json
+from typing import List, Dict, Any
+
 # Hàm để lấy dữ liệu từ tệp JSON về chip của người dùng
 def get_user_chips(user_id):
     with open(f"data/{user_id}.json", "r") as file:
@@ -46,6 +48,101 @@ def get_live_player_stats(event, user_picks):
     else:
         print(f"Yêu cầu không thành công cho event {event}")
         return None
+
+def get_pick_live_players_v2(
+    event: int, 
+    user_picks: Dict[str, Any], 
+    all_bonus_points: Dict[int, Dict[int, float]], 
+    player_info_path: str = "data/player_full_info.json"
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve detailed information about 15 players in user picks.
+
+    Args:
+        event (int): The event ID.
+        user_picks (dict): User's picks containing player IDs and multipliers.
+        all_bonus_points (dict): A dictionary containing expected bonus points.
+        player_info_path (str): Path to the player information JSON file.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries containing player details.
+    """
+    file_name = f"data/events_{str(event)}.json"
+    try:
+        # Load event data
+        with open(file_name, "r") as event_file:
+            event_data = json.load(event_file)
+
+        # Load player info data
+        with open(player_info_path, "r") as player_file:
+            player_info_dict = json.load(player_file)
+
+        players_info = []
+
+        # Process each pick
+        for user_pick in user_picks['picks']:
+            element_id = user_pick['element']
+            multiplier = user_pick['multiplier']
+            is_captain = user_pick['is_captain']
+            is_vice_captain = user_pick['is_vice_captain']
+            position = user_pick['position']
+
+            # Default values if the player data is not found
+            player_details = {
+                "ID": element_id,
+                "web_name": player_info_dict.get(str(element_id), {}).get("web_name", "Unknown"),
+                "point": 0,
+                "bonus": 0,
+                "expected_bonus": 0,
+                "element_type": player_info_dict.get(str(element_id), {}).get("element_type", "Unknown"),
+                "minutes": 0,
+                "multiplier": multiplier,
+                "is_captain": is_captain,
+                "is_vice_captain": is_vice_captain,
+                "running": False,
+                "position": position,
+                "fixture": 0
+            }
+
+            # Find the player in the event data
+            for player in event_data.get('elements', []):
+                if player['id'] == element_id:
+                    player_details["point"] = player['stats']['total_points']
+                    player_details["bonus"] = player['stats']['bonus']
+                    player_details["minutes"] = player['stats']['minutes']
+                    try:
+                        # Safely access the explain array
+                        explain_data = player.get('explain', [])
+                        if explain_data:
+                            # Extract the first fixture ID (if multiple, select the first occurrence)
+                            player_details["fixture"] = explain_data[0].get('fixture', '0')
+                        else:
+                            player_details["fixture"] = '0'
+                            player_details["minutes"] = 0
+                            player_details["running"] = True
+                            player_details["expected_bonus"] = 0
+                            break
+                    except Exception as e:
+                        print(f"Error extracting fixture for player {element_id}: {e}")
+                        player_details["fixture"] = '0'
+                    try:
+                        #chi co 3 player co bonus
+                        player_details["expected_bonus"] = all_bonus_points[player_details["fixture"]]["bonus_points"][element_id]
+                    except Exception as e:
+                        player_details["expected_bonus"] = 0
+                    player_details["running"] = all_bonus_points[player_details["fixture"]]["running"]
+                    break
+            players_info.append(player_details)
+
+        return players_info
+
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return []
+
 
 def get_user_picks(user_id, event):
     with open(f"data/{user_id}_{event}.json", "r") as file:

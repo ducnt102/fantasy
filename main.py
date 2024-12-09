@@ -119,12 +119,15 @@ def generate_json_data_live_thread():
             time.sleep(120)
 
 if __name__ == '__main__':
-
-    thread = threading.Thread(target=generate_json_data_daily_thread)
-    thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    thread.start()
-    time.sleep(10)
-    thread2 = threading.Thread(target=generate_json_data_live_thread)
-    thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    thread2.start()
-    app.run(host='0.0.0.0',port=19999)
+    get_events_file_live(15)
+    save_fixtures_to_file()
+    #save_all_players_full_to_file()
+    render_live_gw_to_file_v2(league_id)
+    #thread = threading.Thread(target=generate_json_data_daily_thread)
+    #thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    #thread.start()
+    #time.sleep(10)
+    #thread2 = threading.Thread(target=generate_json_data_live_thread)
+    #thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
+    #thread2.start()
+    #app.run(host='0.0.0.0',port=19999)

@@ -109,7 +109,7 @@ def generate_json_data_live(league_id):
     # using to update <user_id>.json and <userid>_<current_event_id>.json to live
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id)
-    if running == True:
+    if running == False:
         print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
     get_events_file_live(current_event_id)
@@ -222,6 +222,24 @@ def get_user_picks_file_live(user_id, event):
                 json.dump(data, file)
         else:
             print(f"Yêu cầu không thành công cho user_id {user_id}, event {event}. Status code:", response.status_code)
+
+def save_all_players_full_to_file(file_path='data/player_full_info.json'):
+    url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+    response = requests.get(url)
+    player_info = {}
+    if response.status_code == 200:
+        data = response.json()
+        elements = data.get('elements', [])
+        player_info_dict = {player.get('id'): player.get('web_name') for player in elements}
+        for player in elements:
+            player_info[player["id"]] = {
+                "web_name": player["web_name"],
+                "team": player["team"],
+                "element_type": player["element_type"]
+            }
+    with open(file_path, "w") as file:
+        json.dump(player_info, file, indent=4)
+    print(f"Player info saved to {file_path}.")
 
 def save_all_players_to_file(file_path='data/player_info.json'):
     url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
@@ -471,7 +489,7 @@ def check_fixtures_match_running_v2(gw_id):
                 if kickoff_time_str:
                     kickoff_time = datetime.fromisoformat(kickoff_time_str.replace("Z", "+00:00"))
                     # Check if current_time is within the range
-                    if ( kickoff_time >= current_time - timedelta(hours=10)) and (kickoff_time <= current_time + timedelta(hours=1)):
+                    if ( kickoff_time >= current_time - timedelta(hours=24)) and (kickoff_time <= current_time + timedelta(hours=3)):
                         return True
         return False  # Return list of matching kickoff times
 
@@ -632,5 +650,86 @@ def render_total_to_file(league_id):
                     output_file = 'data/total.html'
                     with open(output_file, "w") as file:
                         file.write(render_user_info(user_info,get_league_name(league_id)))
+  except Exception as e:
+    print(e)
+
+def render_live_gw_to_file_v2(league_id):
+  try:
+    with open("data/league_id.json", "r") as file:
+        data = json.load(file)
+    current_event_id, finished_status = get_current_event()
+    running = check_fixtures_match_running_v2(current_event_id)
+    if running == False:    
+        print(f"HTML LIVE V2 ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
+        return
+    gw_id = current_event_id
+    print(f"RENDER LIVE V2 HTML FILE ================================> {gw_id}")
+    user_info = []
+    file_event="data/events_" + str(gw_id) + ".json" #data/events_15.json
+    if 'standings' in data:
+        standings_info = data['standings']
+        if 'results' in standings_info:
+            results = standings_info['results']
+            if results:
+                for result in results:
+                    user_id = result['entry']
+                    user_events = get_user_events(user_id)
+                    # gw_id - 1 => start array start with index
+                    event_selected = user_events[gw_id-1] if user_events else None
+                    last_event = user_events[-1] if user_events else None
+                    if event_selected:
+                        player_name = result.get('player_name', '')
+                        entry_name = result.get('entry_name', '')
+                        total_points = calculate_total_points(user_id)
+                        last_event_transfers_cost = event_selected.get('event_transfers_cost', 0)
+                        last_event_points = event_selected.get('points', 0) - last_event_transfers_cost 
+                        event_transfers = event_selected.get('event_transfers', 0)
+                        # Sử dụng hàm get_user_picks để lấy thông tin về các lựa chọn
+                        user_picks = get_user_picks(user_id, event_selected['event'])
+                        captain, vice_captain = get_captain_and_vice_captain(user_id, event_selected['event'])
+                        captain_name = get_web_name_by_element_id(captain)
+                        captain_point = get_live_element_id(event_selected['event'],captain) 
+                        vice_point = get_live_element_id(event_selected['event'],vice_captain)
+                        vice_name = get_web_name_by_element_id(vice_captain)
+                        active_chip= get_active_chip(user_id, last_event['event'])
+                        active_chip= get_active_chip(user_id, event_selected['event'])
+                        all_bonus_points = get_expected_bonus_points(file_event)
+                        #print(f"=============={player_name}")
+                        if user_picks:
+                            # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
+                            total_goals_scored, total_assists, event_points  = get_live_player_stats(event_selected['event'], user_picks)
+                            live_user_picks = get_pick_live_players_v2(gw_id, user_picks,all_bonus_points)
+                            #print(f"live_user_picks {live_user_picks}")
+                            exp_user_picks = process_user_picks(live_user_picks)
+                            #print(f"{player_name} ====== {exp_user_picks}")
+                            #break
+                            user_info.append({
+                                'user_id': user_id,
+                                'player_name': player_name,
+                                'entry_name': entry_name,
+                                'total_points': total_points,
+                                'last_event_points': last_event_points,
+                                'last_event_transfers_cost': last_event_transfers_cost,
+                                'user_picks': user_picks,
+                                'total_goals_scored': total_goals_scored,
+                                'total_assists': total_assists,
+                                'active_chip': active_chip,
+                                'event_transfers': event_transfers,
+                                'captain_name': captain_name,
+                                'vice_name': vice_name,
+                                'captain_point': captain_point,
+                                'live_total_points': (int(exp_user_picks["total_points"])- last_event_transfers_cost),
+                                'chang_log': exp_user_picks["change_log"],
+                                'bonus_log': exp_user_picks["bonus_log"],
+                                'live_bps_log': exp_user_picks["live_bps_log"],
+                                'vice_point': vice_point
+
+                            })
+                # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
+                #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
+                user_info.sort(key=lambda x: (x['live_total_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
+                output_file = 'data/' + 'live.html'
+                with open(output_file, "w") as file:
+                    file.write(render_user_live_v2(user_info,get_league_name(league_id),gw_id,gw_id))
   except Exception as e:
     print(e)
