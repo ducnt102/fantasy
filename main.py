@@ -94,7 +94,6 @@ def serve_html():
 def generate_json_data_daily_thread():
     while True:
         try:
-            save_fixtures_to_file()
             render_home_to_file(league_id)
             render_away_to_file(league_id)
             render_total_to_file(league_id)
@@ -110,9 +109,8 @@ def generate_json_data_daily_thread():
 def generate_json_data_hourly_thread():
     while True:
         try:
-            save_fixtures_to_file()
             render_live_gw_to_file(league_id)
-            generate_json_data_live(league_id)
+            generate_json_data_hourly(league_id)
             time.sleep(3600)  # Chờ 1h
         except Exception as e:
             print(f"Error connecting to API: {e}")

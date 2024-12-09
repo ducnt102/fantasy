@@ -28,6 +28,7 @@ def get_league_name(league_id):
 def generate_json_data_daily(league_id):
     save_all_players_to_file()
     save_all_players_full_to_file()
+    save_fixtures_to_file()
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
     response = requests.get(url)
@@ -66,8 +67,9 @@ def generate_json_data_daily(league_id):
 
 def generate_json_data_hourly(league_id):
     #save_all_players_to_filed()
+    save_fixtures_to_file()
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id)
+    running = check_fixtures_match_running_v2(current_event_id,12,2)
     if running == False:
         print(f"HOURLY ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
@@ -109,7 +111,7 @@ def generate_json_data_hourly(league_id):
 def generate_json_data_live(league_id):
     # using to update events_<gw>.json to live
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id)
+    running = check_fixtures_match_running_v2(current_event_id,2,0)
     if running == False:
         print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
@@ -339,7 +341,7 @@ def render_live_gw_to_file(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id)
+    running = check_fixtures_match_running_v2(current_event_id,2,1)
     if running == False:    
         print(f"HTML LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return    
@@ -431,7 +433,7 @@ def check_fixtures_match_running(gw_id):
     except (json.JSONDecodeError, FileNotFoundError) as e:
         print(f"Error reading the file: {e}")
         return False
-def check_fixtures_match_running_v2(gw_id):
+def check_fixtures_match_running_v2(gw_id,b,a):
     """
     Reads a JSON file and checks if any events have a kickoff time where the current time falls within:
     - kickoff_time - 1 hour to kickoff_time + 3 hours.
@@ -456,7 +458,7 @@ def check_fixtures_match_running_v2(gw_id):
                 if kickoff_time_str:
                     kickoff_time = datetime.fromisoformat(kickoff_time_str.replace("Z", "+00:00"))
                     # Check if current_time is within the range
-                    if ( kickoff_time >= current_time - timedelta(hours=24)) and (kickoff_time <= current_time + timedelta(hours=24)):
+                    if ( kickoff_time >= current_time - timedelta(hours=b)) and (kickoff_time <= current_time + timedelta(hours=a)):
                         return True
         return False  # Return list of matching kickoff times
 
@@ -625,7 +627,7 @@ def render_live_gw_to_file_v2(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id)
+    running = check_fixtures_match_running_v2(current_event_id,3,0)
     if running == False:    
         print(f"HTML LIVE V2 ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
