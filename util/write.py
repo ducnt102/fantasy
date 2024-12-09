@@ -456,7 +456,7 @@ def check_fixtures_match_running_v2(gw_id):
                 if kickoff_time_str:
                     kickoff_time = datetime.fromisoformat(kickoff_time_str.replace("Z", "+00:00"))
                     # Check if current_time is within the range
-                    if ( kickoff_time >= current_time - timedelta(hours=24)) and (kickoff_time <= current_time + timedelta(hours=3)):
+                    if ( kickoff_time >= current_time - timedelta(hours=24)) and (kickoff_time <= current_time + timedelta(hours=24)):
                         return True
         return False  # Return list of matching kickoff times
 
