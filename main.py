@@ -34,7 +34,7 @@ def gw():
 def live():
   try:
     current_event_id, finished_status = get_current_event()
-    html_file_path = f"data/gw_{current_event_id}.html"
+    html_file_path = f"data/live.html"
     with open(html_file_path, "r") as html_file:
         html_content = html_file.read()
         return html_content  # Return the HTML content as the response
@@ -106,17 +106,32 @@ def generate_json_data_daily_thread():
             # Nếu gặp lỗi kết nối, chờ 2 phút trước khi thử lại
             continue
             time.sleep(120)
+
+def generate_json_data_hourly_thread():
+    while True:
+        try:
+            save_fixtures_to_file()
+            render_live_gw_to_file(league_id)
+            generate_json_data_live(league_id)
+            time.sleep(3600)  # Chờ 1h
+        except Exception as e:
+            print(f"Error connecting to API: {e}")
+            # Nếu gặp lỗi kết nối, chờ 1 phút trước khi thử lại
+            continue
+            time.sleep(60)
+
 def generate_json_data_live_thread():
     while True:
         try:
-            render_live_gw_to_file(league_id)
+            #render_live_gw_to_file(league_id)
             generate_json_data_live(league_id)
-            time.sleep(60)  # Chờ 10 phút (600 giây) trước khi chạy lại
+            render_live_gw_to_file_v2(league_id)
+            time.sleep(10)  # Chờ 10 s
         except Exception as e:
             print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 10 phút trước khi thử lại
+            # Nếu gặp lỗi kết nối, chờ 1 phút trước khi thử lại
             continue
-            time.sleep(120)
+            time.sleep(60)
 
 if __name__ == '__main__':
     get_events_file_live(15)

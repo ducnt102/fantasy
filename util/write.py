@@ -27,6 +27,7 @@ def get_league_name(league_id):
 
 def generate_json_data_daily(league_id):
     save_all_players_to_file()
+    save_all_players_full_to_file()
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
     response = requests.get(url)
@@ -66,8 +67,9 @@ def generate_json_data_daily(league_id):
 def generate_json_data_hourly(league_id):
     #save_all_players_to_filed()
     current_event_id, finished_status = get_current_event()
-    if finished_status == True:
-        print(f"HOURLY ====> GW {current_event_id} is FINISHED!!!!!!!!!!!")
+    running = check_fixtures_match_running_v2(current_event_id)
+    if running == False:
+        print(f"HOURLY ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
@@ -76,8 +78,8 @@ def generate_json_data_hourly(league_id):
     if response.status_code == 200:
         # Lấy dữ liệu JSON từ phản hồi
         data = response.json()
-        #with open("data/league_id.json", "w") as file:
-        #    json.dump(data, file)
+        with open("data/league_id.json", "w") as file:
+            json.dump(data, file)
         # Kiểm tra xem dữ liệu có chứa thông tin standings không
         if 'standings' in data:
             standings_info = data['standings']
@@ -100,53 +102,18 @@ def generate_json_data_hourly(league_id):
                           user_events = get_user_events_x(user_id)
                           last_event = user_events[-1] if user_events else None
                         get_user_picks_file_live(user_id,last_event['event'])
-                        get_events_file_live(last_event['event'])
-                        print(f"GW {current_event_id} not finish, live update : Dữ liệu cho user_id {user_id}, event {last_event['event']} đã được lưu vào file json")
+                        print(f"Hourly update : Dữ liệu cho user_id {user_id}, event {last_event['event']} đã được lưu vào file json")
                 else:
                     print(f"Hourly: Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
 
 def generate_json_data_live(league_id):
-    # using to update <user_id>.json and <userid>_<current_event_id>.json to live
+    # using to update events_<gw>.json to live
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id)
     if running == False:
         print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
         return
     get_events_file_live(current_event_id)
-    url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
-    # Gửi yêu cầu GET đến API
-    response = requests.get(url)
-    # Kiểm tra xem yêu cầu có thành công không (status code 200)
-    if response.status_code == 200:
-        # Lấy dữ liệu JSON từ phản hồi
-        data = response.json()
-        #with open("data/league_id.json", "w") as file:
-        #    json.dump(data, file)
-        # Kiểm tra xem dữ liệu có chứa thông tin standings không
-        if 'standings' in data:
-            standings_info = data['standings']
-            # Kiểm tra xem có kết quả (results) nào trong standings hay không
-            if 'results' in standings_info:
-                results = standings_info['results']
-                if results:
-                    for result in results:
-                        user_id = result['entry']
-                        url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
-                        # Gửi yêu cầu GET đến API
-                        response = requests.get(url)
-                        # Kiểm tra xem yêu cầu có thành công không (status code 200)
-                        if response.status_code == 200:
-                          # Lấy dữ liệu JSON từ phản hồi
-                          user_data = response.json()
-                          # Lưu dữ liệu vào tệp JSON
-                          with open(f"data/{user_id}.json", "w") as file:
-                            json.dump(user_data, file)
-                          #user_events = get_user_events_x(user_id) # not need , replace  current_event_id
-                          #last_event = user_events[-1] if user_events else None
-                          get_user_picks_file_live(user_id,current_event_id)
-                          print(f"Event live: Dữ liệu cho user_id {user_id}, event {current_event_id} đã được lưu vào file json")
-                else:
-                    print(f"Event live: Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
 
 def get_user_events_x(user_id):
     user_events = []
