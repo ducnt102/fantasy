@@ -265,7 +265,7 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     # Separate starters and substitutes
     starters = [player for player in live_user_picks if player["multiplier"] > 0]
-    substitutes = [player for player in live_user_picks if player["multiplier"] == 0]
+    substitutes = [player for player in live_user_picks if player["multiplier"] == 0 ]
 
     # Ensure exactly 11 players in starters
     if len(starters) != 11:
@@ -343,6 +343,8 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
         # Find a suitable substitute that satisfies min/max formation requirements
         substitute_found = False
         for sub_player in substitutes:
+            if (sub_player["minutes"] == 0):
+                continue
             potential_formation = formation.copy()
             potential_formation[str(sub_player["element_type"])] += 1
 
@@ -368,6 +370,8 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         # If no substitute is found, log an error
         if not substitute_found:
+            starters.append(sub)
+            formation[str(sub["element_type"])] += 1            
             change_log.append(
                 f"{sub['web_name']} (NotSub)"
             )
@@ -377,7 +381,7 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
             bonus_log.append(
                 f"{p['web_name']}: {p['bonus']}"
             )
-        if  p["expected_bonus"] > 0:
+        if  p["expected_bonus"] > 0 and p["expected_bonus"] != p["bonus"]:
             live_bps_log.append(
                 f"{p['web_name']}: {p['expected_bonus']}"
             )

@@ -26,9 +26,11 @@ def get_league_name(league_id):
         return None
 
 def generate_json_data_daily(league_id):
+    print(f"DAILY JOB: ======================================================>")
     save_all_players_to_file()
     save_all_players_full_to_file()
     save_fixtures_to_file()
+    current_event_id, finished_status = get_current_event()
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
     response = requests.get(url)
@@ -57,22 +59,25 @@ def generate_json_data_daily(league_id):
                           # Lưu dữ liệu vào tệp JSON
                           with open(f"data/{user_id}.json", "w") as file:
                             json.dump(user_data, file)
-                          user_events = get_user_events_x(user_id)
-                          last_event = user_events[-1] if user_events else None
-                          get_user_picks_file(user_id,last_event['event'])
-                          get_events_file(last_event['event'])
-                          print(f"Daily: Dữ liệu cho user_id {user_id},event {last_event['event']} đã được lưu vào file json")
-                else:
-                    print(f"Daily: Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
+                          get_user_picks_file(user_id,current_event_id)
+                    get_events_file(current_event_id)
+    else:
+        print(f"DAILY JOB: ======================================================> ERROR Status code:", response.status_code)
+    render_home_to_file(league_id)
+    render_away_to_file(league_id)
+    render_total_to_file(league_id)
+    render_old_gw_to_file(league_id)
 
 def generate_json_data_hourly(league_id):
-    #save_all_players_to_filed()
+    print(f"HOURLY JOB: ======================================================>")    
     save_fixtures_to_file()
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id,12,2)
     if running == False:
-        print(f"HOURLY ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
+        print(f"HOURLY JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
+    print(f"HOURLY JOB START ====> GW {current_event_id} ======================================================>")
+    get_events_file_live(current_event_id)
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
     response = requests.get(url)
@@ -104,18 +109,21 @@ def generate_json_data_hourly(league_id):
                           user_events = get_user_events_x(user_id)
                           last_event = user_events[-1] if user_events else None
                         get_user_picks_file_live(user_id,last_event['event'])
-                        print(f"Hourly update : Dữ liệu cho user_id {user_id}, event {last_event['event']} đã được lưu vào file json")
-                else:
-                    print(f"Hourly: Yêu cầu không thành công cho user_id {user_id}. Status code:", response.status_code)
+    else:
+        print(f"HOURLY JOB: ======================================================> ERROR Status code:", response.status_code)
+    render_live_gw_to_file_v2(league_id)
+    render_live_gw_to_file(league_id)
 
 def generate_json_data_live(league_id):
     # using to update events_<gw>.json to live
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id,2,0)
     if running == False:
-        print(f"LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
+        #print(f"LIVE JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
+    print(f"LIVE JOB START ====> GW {current_event_id} ==========================================>")
     get_events_file_live(current_event_id)
+    render_live_gw_to_file_v2(league_id)
 
 def get_user_events_x(user_id):
     user_events = []
@@ -146,8 +154,9 @@ def get_events_file(gw_id):
             data = response.json()
             with open(file_name, "w") as file:
                 json.dump(data, file)
+            print(f"EVENT FILES ==> event_{event}.json")
         else:
-            print(f"Yêu cầu không thành công cho event {event}. Status code:", response.status_code)
+            print(f"ERROR API CALL /event/{event}/live/ Status code:", response.status_code)
             return None
 
 def get_events_file_live(event):
@@ -161,8 +170,9 @@ def get_events_file_live(event):
             data = response.json()
             with open(file_name, "w") as file:
                 json.dump(data, file)
+            print(f"EVENT FILES ==> event_{event}.json")
         else:
-            print(f"Yêu cầu không thành công cho event {event}. Status code:", response.status_code)
+            print(f"ERROR API CALL /event/{event}/live/ Status code:", response.status_code)
             return None
 
 def get_user_picks_file(user_id, event):
@@ -176,8 +186,9 @@ def get_user_picks_file(user_id, event):
             data = response.json()
             with open(f"data/{user_id}_{gw_id}.json", "w") as file:
                 json.dump(data, file)
+            print(f"USER_PICKS FILES ==> {user_id}_{gw_id}.json")
         else:
-            print(f"Yêu cầu không thành công cho user_id {user_id}, event {gw_id}. Status code:", response.status_code)
+            print(f"YERROR API CALL user_id /entry/{user_id}/event/{gw_id}/picks/. Status code:", response.status_code)
 
 def get_user_picks_file_live(user_id, event):
         url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{event}/picks/"
@@ -189,8 +200,9 @@ def get_user_picks_file_live(user_id, event):
             data = response.json()
             with open(f"data/{user_id}_{event}.json", "w") as file:
                 json.dump(data, file)
+            print(f"USER_PICKS FILES ==> {user_id}_{event}.json")
         else:
-            print(f"Yêu cầu không thành công cho user_id {user_id}, event {event}. Status code:", response.status_code)
+            print(f"YERROR API CALL user_id /entry/{user_id}/event/{event}/picks/. Status code:", response.status_code)
 
 def save_all_players_full_to_file(file_path='data/player_full_info.json'):
     url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
@@ -279,7 +291,7 @@ def render_old_gw_to_file(league_id):
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
     for gw_id in range(1, current_event_id+1):
-        print(f"RENDER ALL HTML FILE================================> {gw_id}")
+        print(f"RENDER OLD HTML FILE ================================> data/gw_{gw_id}.html")
         user_info = []
         if 'standings' in data:
             standings_info = data['standings']
@@ -341,12 +353,8 @@ def render_live_gw_to_file(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,2,1)
-    if running == False:    
-        print(f"HTML LIVE ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
-        return    
     gw_id = current_event_id
-    print(f"RENDER LIVE HTML FILE ================================> {gw_id}")
+    print(f"RENDER OLD HTML FILE ================================> data/gw_{gw_id}.html")
     user_info = []
     if 'standings' in data:
         standings_info = data['standings']
@@ -627,12 +635,8 @@ def render_live_gw_to_file_v2(league_id):
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,3,0)
-    if running == False:    
-        print(f"HTML LIVE V2 ====> GW {current_event_id} is finished_status={finished_status} , running={running} !!!!!!!!!!!")
-        return
     gw_id = current_event_id
-    print(f"RENDER LIVE V2 HTML FILE ================================> {gw_id}")
+    print(f"RENDER LIVE HTML FILE FOR GW {gw_id} ================================> data/live.html")
     user_info = []
     file_event="data/events_" + str(gw_id) + ".json" #data/events_15.json
     if 'standings' in data:

@@ -206,6 +206,7 @@ def render_user_info(user_info, league_name):
 def render_user_live_v2(user_info, league_name, gw_id, last_gw):
     # Tạo HTML cho trang
     html = "<html><head>"
+    html += """<meta http-equiv="refresh" content="30">"""
     html += "<style>"
     html += "body {"
     html += "    margin: 0;"
