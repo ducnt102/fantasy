@@ -30,6 +30,7 @@ def generate_json_data_daily(league_id):
     save_all_players_to_file()
     save_all_players_full_to_file()
     save_fixtures_to_file()
+    save_bootstrap_to_file()    
     current_event_id, finished_status = get_current_event()
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
     # Gửi yêu cầu GET đến API
@@ -71,6 +72,7 @@ def generate_json_data_daily(league_id):
 def generate_json_data_hourly(league_id):
     print(f"HOURLY JOB: ======================================================>")    
     save_fixtures_to_file()
+    save_bootstrap_to_file()
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id,12,2)
     if running == False:
@@ -252,37 +254,36 @@ def save_fixtures_to_file(file_path='data/fixtures.json'):
     else:
         print(f"Error: {response.status_code}, {response.text}")
 
-
-def get_current_event(api_url="https://fantasy.premierleague.com/api/bootstrap-static/"):
-    """
-    Fetch the current event ID and its 'finished' status from the FPL API.
-
-    Args:
-        api_url (str): The API endpoint to fetch data from.
-
-    Returns:
-        tuple: (current_event_id, finished_status) if found, otherwise None.
-    """
+def save_bootstrap_to_file(api_url="https://fantasy.premierleague.com/api/bootstrap-static/",file_path='data/bootstrap-static.json'):
     try:
         # Fetch data from the API
         response = requests.get(api_url)
         response.raise_for_status()  # Raise an error for failed requests
-        
-        # Parse JSON
-        data = response.json()
+        if response.status_code == 200:
+            data = response.json()
+            with open(file_path, 'w') as file:
+                json.dump(data, file, indent=4)
+
+            print(f"All fixtures info saved successfully to {file_path}.")
+        else:
+            print(f"Error: {response.status_code}, {response.text}")
+    except requests.RequestException as e:
+        print(f"Error fetching data: {e}")
+        return None, None    
+
+def get_current_event(file_path='data/bootstrap-static.json'):
+    try:
+        with open(file_path, "r") as file:
+            data = json.load(file)        # Fetch data from the API
         events = data.get("events", [])
-        
-        # Find the current event
         for event in events:
             if event.get("is_current", False):
                 return event["id"], event["finished"]
-        
         # No current event found
         return None, None
     except requests.RequestException as e:
         print(f"Error fetching data: {e}")
         return None, None
-
 
 def render_old_gw_to_file(league_id):
   try:
@@ -405,8 +406,9 @@ def render_live_gw_to_file(league_id):
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
                 user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
                 output_file = 'data/' + 'gw_' + str(gw_id) + '.html'
+                text_html = render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
                 with open(output_file, "w") as file:
-                    file.write(render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event']))
+                    file.write(text_html)
   except Exception as e:
     print(e)
 
