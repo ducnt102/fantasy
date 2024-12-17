@@ -271,7 +271,7 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans_Cost</th><th class='highlight'>Total_Goals</th><th class='highlight'>Total_Assists</th><th class='highlight'>Captain</th><th class='highlight'>Vice</th><th class='highlight'>Cap_points</th><th class='highlight'>Vice_points</th><th class='highlight'>AutoSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
+    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans(Cost)</th><th class='highlight'>Cap|Vice</th><th class='highlight'>Static</th><th class='highlight'>LiveSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
     #html += "<tr><th class='highlight'>Entry Name</th><th class='highlight'>Player Name</th><th class='highlight'>Total Points</th><th class='highlight'>Points</th><th class='highlight'>Active Chip</th><th class='highlight'>Event Transfers</th><th class='highlight'>Total Transfers Cost</th><th class='highlight'>WILDCARD</th><th class='highlight'>FREEHIT</th><th class='highlight'>BBOOST</th><th class='highlight'>3CX</th><th class='highlight'>Last_value</th><th class='highlight'>Last_bank</th></tr>"
 
     for idx,user in enumerate(user_info):
@@ -300,13 +300,9 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
         html += f"<td>{player_name}</td>"
         html += f"<td>{live_total_points}</td>"
         html += f"<td>{active_chip}</td>"
-        html += f"<td>{last_event_transfers_cost}</td>"
-        html += f"<td>{total_goals_scored}</td>"
-        html += f"<td>{total_assists}</td>"
-        html += f"<td>{captain_name}</td>"
-        html += f"<td>{vice_name}</td>"
-        html += f"<td>{captain_point}</td>"
-        html += f"<td>{vice_point}</td>"
+        html += f"<td>{event_transfers}{'(0)' if last_event_transfers_cost == 0 else f'(-{last_event_transfers_cost})'}</td>"
+        html += f"<td>{captain_name}({captain_point})<br>{vice_name}({vice_point})</td>"
+        html += f"<td>G:{total_goals_scored}<br>A:{total_assists}<br></td>"
         html += f"<td>{chang_log}</td>"
         html += f"<td>{bonus_log}</td>"
         html += f"<td>{live_bps_log}</td>"

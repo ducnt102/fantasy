@@ -287,7 +287,6 @@ def get_current_event(file_path='data/bootstrap-static.json'):
 
 def render_old_gw_to_file(league_id):
   try:
-    #print("RENDER ALL HTML FILE================================>")
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
     current_event_id, finished_status = get_current_event()
@@ -343,9 +342,9 @@ def render_old_gw_to_file(league_id):
                     #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
                     user_info.sort(key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
                     output_file = 'data/' + 'gw_' + str(gw_id) + '.html'
+                    text_html = render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
                     with open(output_file, "w") as file:
-                        file.write(render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event']))
-        #return render_live_info(user_info,get_league_name(league_id),event_selected['event'],last_event['event'])
+                        file.write(text_html)                    
   except Exception as e:
     print(e)
 
@@ -704,7 +703,8 @@ def render_live_gw_to_file_v2(league_id):
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
                 user_info.sort(key=lambda x: (x['live_total_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']), reverse=True)
                 output_file = 'data/' + 'live.html'
+                text_html = render_user_live_v2(user_info,get_league_name(league_id),gw_id,gw_id)
                 with open(output_file, "w") as file:
-                    file.write(render_user_live_v2(user_info,get_league_name(league_id),gw_id,gw_id))
+                    file.write(text_html)
   except Exception as e:
     print(e)
