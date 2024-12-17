@@ -74,7 +74,7 @@ def generate_json_data_hourly(league_id):
     save_fixtures_to_file()
     save_bootstrap_to_file()
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,12,2)
+    running = check_fixtures_match_running_v2(current_event_id,8,2)
     if running == False:
         print(f"HOURLY JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
@@ -121,7 +121,7 @@ def generate_json_data_live(league_id):
     current_event_id, finished_status = get_current_event()
     running = check_fixtures_match_running_v2(current_event_id,2,0)
     if running == False:
-        #print(f"LIVE JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
+        print(f"LIVE JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
     print(f"LIVE JOB START ====> GW {current_event_id} ==========================================>")
     get_events_file_live(current_event_id)

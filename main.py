@@ -91,53 +91,35 @@ def display_home_info():
 def serve_html():
     return send_from_directory('static', 'error.html')
 
-def generate_json_data_daily_thread():
+def generate_json_data_with_priority():
+    # Time trackers
+    last_daily_run = None
+    last_hourly_run = None
     while True:
         try:
-            generate_json_data_daily(league_id)
-            time.sleep(3600*24)  # Chờ 1 ngày trước khi chạy lại
-        except Exception as e:
-            print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 2 phút trước khi thử lại
-            continue
-            time.sleep(120)
-
-def generate_json_data_hourly_thread():
-    while True:
-        try:
-            generate_json_data_hourly(league_id)
-            time.sleep(3600)  # Chờ 1h
-        except Exception as e:
-            print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 1 phút trước khi thử lại
-            continue
-            time.sleep(60)
-
-def generate_json_data_live_thread():
-    while True:
-        try:
-            #render_live_gw_to_file(league_id)
+            current_time = datetime.now()
+            # Check and run the daily task
+            if last_daily_run is None or current_time - last_daily_run >= timedelta(days=1):
+                print("Running daily task...")
+                generate_json_data_daily(league_id)
+                last_daily_run = current_time
+                continue  # Skip other tasks for this iteration to give priority to daily
+            # Check and run the hourly task
+            if last_hourly_run is None or current_time - last_hourly_run >= timedelta(hours=1):
+                print("Running hourly task...")
+                generate_json_data_hourly(league_id)
+                last_hourly_run = current_time
+                continue  # Skip live task for this iteration to give priority to hourly
+            # Run the live task every 10 seconds
+            print("Running live task...")
             generate_json_data_live(league_id)
-            time.sleep(10)  # Chờ 10 s
+            time.sleep(10)  # Wait 10 seconds before the next iteration
         except Exception as e:
             print(f"Error connecting to API: {e}")
-            # Nếu gặp lỗi kết nối, chờ 1 phút trước khi thử lại
-            continue
-            time.sleep(60)
+            time.sleep(60)  # Wait 1 minute before retrying in case of errors
 
 if __name__ == '__main__':
-    #get_events_file_live(15)
-    #save_fixtures_to_file()
-    #save_all_players_full_to_file()
-    #render_live_gw_to_file_v2(league_id)
-    thread = threading.Thread(target=generate_json_data_daily_thread)
+    thread = threading.Thread(target=generate_json_data_with_priority)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()
-    thread3 = threading.Thread(target=generate_json_data_hourly_thread)
-    thread3.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    thread3.start()
-    time.sleep(10)
-    thread2 = threading.Thread(target=generate_json_data_live_thread)
-    thread2.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
-    thread2.start()
     app.run(host='0.0.0.0',port=19999)

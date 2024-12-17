@@ -271,9 +271,8 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans(Cost)</th><th class='highlight'>Cap|Vice</th><th class='highlight'>Static</th><th class='highlight'>LiveSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
-    #html += "<tr><th class='highlight'>Entry Name</th><th class='highlight'>Player Name</th><th class='highlight'>Total Points</th><th class='highlight'>Points</th><th class='highlight'>Active Chip</th><th class='highlight'>Event Transfers</th><th class='highlight'>Total Transfers Cost</th><th class='highlight'>WILDCARD</th><th class='highlight'>FREEHIT</th><th class='highlight'>BBOOST</th><th class='highlight'>3CX</th><th class='highlight'>Last_value</th><th class='highlight'>Last_bank</th></tr>"
-
+    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans(Cost)</th><th class='highlight'>Cap|Vice</th><th class='highlight'>Goals|Assists</th><th class='highlight'>LiveSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
+    
     for idx,user in enumerate(user_info):
         player_name = user['player_name']
         entry_name = user['entry_name']
