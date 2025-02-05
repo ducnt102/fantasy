@@ -253,7 +253,7 @@ def get_expected_bonus_points(file_path: str) -> DefaultDict[int, DefaultDict[in
         return defaultdict(lambda: defaultdict(int))
     
 
-def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
+def process_user_picks(live_user_picks: List[Dict[str, Any]],active_chip) -> Dict[str, Any]:
     """
     Process 15 players to select the final 11 based on rules and calculate total points.
 
@@ -266,9 +266,10 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
     # Separate starters and substitutes
     starters = [player for player in live_user_picks if player["multiplier"] > 0]
     substitutes = [player for player in live_user_picks if player["multiplier"] == 0 ]
+    bb = 0
 
     # Ensure exactly 11 players in starters
-    if len(starters) != 11:
+    if len(starters) >=15 and active_chip != "manager":
         for player in starters:
             bb += player["point"] * player["multiplier"]
         return {
@@ -287,16 +288,18 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
         "2": 3,  # DEF
         "3": 2,  # MID
         "4": 1,  # FWD
+        "5": 0,  # MANAGER
     }
     max_formation = {   
         "1": 1,  # GK
         "2": 5,  # DEF
         "3": 5,  # MID
         "4": 3,  # FWD
+        "5": 1,  # MANAGER
     }
 
     # Current formation count
-    formation = {"1": 0, "2": 0, "3": 0, "4": 0}
+    formation = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
     for player in starters:
         formation[str(player["element_type"])] += 1
 
@@ -332,7 +335,7 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]]) -> Dict[str, Any]:
     live_bps_log = []
 
     # Identify players to replace
-    to_replace = [player for player in starters if player["minutes"] == 0 and player["running"]]
+    to_replace = [player for player in starters if player["minutes"] == 0 and player["running"] and player["element_type"] != 5]
 
     # Substitute players if needed
     for sub in to_replace:

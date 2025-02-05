@@ -668,13 +668,14 @@ def render_live_gw_to_file_v2(league_id):
                         active_chip= get_active_chip(user_id, last_event['event'])
                         active_chip= get_active_chip(user_id, event_selected['event'])
                         all_bonus_points = get_expected_bonus_points(file_event)
-                        #print(f"=============={player_name}")
+                        print(f"=============={player_name}")
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
                             total_goals_scored, total_assists, event_points  = get_live_player_stats(event_selected['event'], user_picks)
+                            print(f"AAAAAAAA")
                             live_user_picks = get_pick_live_players_v2(gw_id, user_picks,all_bonus_points)
-                            #print(f"live_user_picks {live_user_picks}")
-                            exp_user_picks = process_user_picks(live_user_picks)
+                            print(f"live_user_picks {live_user_picks}")
+                            exp_user_picks = process_user_picks(live_user_picks,active_chip)
                             #print(f"{player_name} ====== {exp_user_picks}")
                             #break
                             user_info.append({
