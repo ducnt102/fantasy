@@ -1405,6 +1405,10 @@ def render_month_points_to_file(mon: int, league_id: int, out_dir: str = "data")
     for m in months:
         cls = "active" if m == int(mon) else ""
         html.append(f"<a class='{cls}' href='/month?mon={m}'>Tháng {m}</a>")
+    html += "<a href='/' style='color:#4CAF50; text-decoration;'>Total </a>"
+    html += "<a href='/home' style='color:#4CAF50; text-decoration;'>Home </a>"
+    html += "<a href='/away' style='color:#4CAF50; text-decoration;'>Away </a>"
+    html += "<a href='/live' style='color:#4CAF50; text-decoration;'>    GW</a><br>"
     html.append("</div>")
 
     html.append("</div>")  # /header
