@@ -12,7 +12,7 @@ from html.render import *
 
 app = Flask(__name__)
 
-league_id = 460675
+league_id = 816786
 
 
 @app.route('/gw')
@@ -119,7 +119,7 @@ def generate_json_data_with_priority():
             time.sleep(60)  # Wait 1 minute before retrying in case of errors
 
 if __name__ == '__main__':
-    #render_live_gw_to_file_v2(league_id)
+    render_live_gw_to_file_v2(league_id)
     thread = threading.Thread(target=generate_json_data_with_priority)
     thread.daemon = True  # Đặt thread thành daemon để nó tự động dừng khi ứng dụng Flask kết thúc
     thread.start()

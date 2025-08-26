@@ -49,7 +49,122 @@ def get_live_player_stats(event, user_picks):
         print(f"Yêu cầu không thành công cho event {event}")
         return None
 
+
 def get_pick_live_players_v2(
+    event: int, 
+    user_picks: Dict[str, Any], 
+    all_bonus_points: Dict[int, Dict[int, float]], 
+    player_info_path: str = "data/player_full_info.json"
+) -> List[Dict[str, Any]]:
+    file_name = f"data/events_{str(event)}.json"
+    try:
+        try:
+            with open(file_name, "r", encoding="utf-8") as event_file:
+                event_data = json.load(event_file)
+        except Exception as e:
+            print(f"[WARN] Cannot load {file_name}: {e}")
+            event_data = {}
+
+        try:
+            with open(player_info_path, "r", encoding="utf-8") as player_file:
+                player_info_dict = json.load(player_file)
+        except Exception as e:
+            print(f"[WARN] Cannot load {player_info_path}: {e}")
+            player_info_dict = {}
+
+        picks = []
+        if isinstance(user_picks, dict):
+            picks = user_picks.get("picks") or []
+            if not isinstance(picks, list):
+                picks = []
+
+        elements = event_data.get("elements") or []
+        if not isinstance(elements, list):
+            elements = []
+
+        players_info: List[Dict[str, Any]] = []
+
+        for user_pick in picks:
+            element_id = (user_pick or {}).get("element", 0) or 0
+            # BỎ QUA pick không hợp lệ (0 hoặc thiếu)
+            if not isinstance(element_id, int) or element_id <= 0:
+                continue
+
+            multiplier = (user_pick or {}).get("multiplier", 0) or 0
+            is_captain = bool((user_pick or {}).get("is_captain", False))
+            is_vice_captain = bool((user_pick or {}).get("is_vice_captain", False))
+            position = (user_pick or {}).get("position", 0) or 0
+
+            info_from_dict = player_info_dict.get(str(element_id), {}) if isinstance(player_info_dict, dict) else {}
+            player_details = {
+                "ID": element_id,
+                "web_name": info_from_dict.get("web_name", "Unknown"),
+                "point": 0,
+                "bonus": 0,
+                "expected_bonus": 0,
+                "element_type": info_from_dict.get("element_type", 0) or 0,
+                "minutes": 0,
+                "multiplier": multiplier,
+                "is_captain": is_captain,
+                "is_vice_captain": is_vice_captain,
+                "running": False,
+                "position": position,
+                "fixture": 0
+            }
+
+            # Tìm player trong event_data
+            player_obj = None
+            for p in elements:
+                try:
+                    if p.get("id") == element_id:
+                        player_obj = p
+                        break
+                except Exception:
+                    continue
+
+            # Nếu không có trong events_<gw>.json -> bỏ qua để tránh out-of-index ở explain
+            if not player_obj:
+                continue
+
+            stats = player_obj.get("stats") or {}
+            player_details["point"] = stats.get("total_points", 0) or 0
+            player_details["bonus"] = stats.get("bonus", 0) or 0
+            player_details["minutes"] = stats.get("minutes", 0) or 0
+
+            # explain có thể rỗng
+            fixture_id = 0
+            explain_data = player_obj.get("explain")
+            if isinstance(explain_data, list) and len(explain_data) > 0:
+                first_exp = explain_data[0] or {}
+                fixture_id = first_exp.get("fixture", 0) or 0
+            player_details["fixture"] = fixture_id
+
+            # Bonus kỳ vọng + running
+            fixture_key_int = fixture_id
+            fixture_key_str = str(fixture_id)
+            abp_entry = (
+                all_bonus_points.get(fixture_key_int)
+                or all_bonus_points.get(fixture_key_str)
+                or {}
+            )
+            bonus_points_map = abp_entry.get("bonus_points") or {}
+            if not isinstance(bonus_points_map, dict):
+                bonus_points_map = {}
+            player_details["expected_bonus"] = bonus_points_map.get(element_id, 0) or 0
+            player_details["running"] = bool(abp_entry.get("running", False))
+
+            players_info.append(player_details)
+
+        return players_info
+
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return []
+
+def _get_pick_live_players_v2(
     event: int, 
     user_picks: Dict[str, Any], 
     all_bonus_points: Dict[int, Dict[int, float]], 

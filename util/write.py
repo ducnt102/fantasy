@@ -74,7 +74,7 @@ def generate_json_data_hourly(league_id):
     save_fixtures_to_file()
     save_bootstrap_to_file()
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,8,2)
+    running = check_fixtures_match_running_v2(current_event_id,24,24)
     if running == False:
         print(f"HOURLY JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
@@ -127,6 +127,25 @@ def generate_json_data_live(league_id):
     get_events_file_live(current_event_id)
     render_live_gw_to_file_v2(league_id)
 
+
+def _event_placeholder(ev: int) -> dict:
+    """Fake record đủ schema của /entry/{id}/history/ cho 1 event, mọi số liệu = 0/None."""
+    return {
+        "event": ev,
+        "points": 0,
+        "total_points": 0,
+        "rank": 0,
+        "rank_sort": 0,
+        "overall_rank": 0,
+        "percentile_rank": 0,
+        "bank": 0,
+        "value": 0,
+        "event_transfers": 0,
+        "event_transfers_cost": 0,
+        "points_on_bench": 0,
+    }
+
+
 def get_user_events_x(user_id):
     user_events = []
     url = f"https://fantasy.premierleague.com/api/entry/{user_id}/history/"
@@ -177,7 +196,54 @@ def get_events_file_live(event):
             print(f"ERROR API CALL /event/{event}/live/ Status code:", response.status_code)
             return None
 
+def _placeholder_picks(entry_id, gw_id):
+    """
+    Fake dữ liệu picks đầy đủ khi API trả 404 hoặc không có data.
+    Tất cả giá trị = 0 hoặc None, nhưng đủ schema để renderer không lỗi.
+    """
+    return {
+        "active_chip": None,
+        "automatic_subs": [],
+        "entry_history": {
+            "event": gw_id,
+            "points": 0,
+            "total_points": 0,
+            "rank": 0,
+            "rank_sort": 0,
+            "overall_rank": 0,
+            "percentile_rank": 0,
+            "bank": 0,
+            "value": 0,
+            "event_transfers": 0,
+            "event_transfers_cost": 0,
+            "points_on_bench": 0
+        },
+        "picks": []
+    }
+
 def get_user_picks_file(user_id, event):
+    for gw_id in range(1, int(event)):
+        url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{gw_id}/picks/"
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+            elif response.status_code == 404:
+                # User chưa có dữ liệu ở GW này -> ghi placeholder
+                data = _placeholder_picks(user_id, gw_id)
+                print(f"[INFO] 404 for {user_id} GW{gw_id} -> write placeholder")
+            else:
+                print(f"[WARN] Picks {user_id} GW{gw_id} status={response.status_code} -> write placeholder")
+                data = _placeholder_picks(user_id, gw_id)
+        except Exception as e:
+            print(f"[ERROR] Picks {user_id} GW{gw_id}: {e} -> write placeholder")
+            data = _placeholder_picks(user_id, gw_id)
+
+        with open(f"data/{user_id}_{gw_id}.json", "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False)
+        print(f"USER_PICKS FILES ==> {user_id}_{gw_id}.json")
+
+def _get_user_picks_file(user_id, event):
     for gw_id in range(1, int(event)):
         url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{gw_id}/picks/"
         # Gửi yêu cầu GET đến API
@@ -193,6 +259,26 @@ def get_user_picks_file(user_id, event):
             print(f"YERROR API CALL user_id /entry/{user_id}/event/{gw_id}/picks/. Status code:", response.status_code)
 
 def get_user_picks_file_live(user_id, event):
+    url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{event}/picks/"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+        elif response.status_code == 404:
+            data = _placeholder_picks(user_id, event)
+            print(f"[INFO] 404 LIVE for {user_id} GW{event} -> write placeholder")
+        else:
+            print(f"[WARN] LIVE Picks {user_id} GW{event} status={response.status_code} -> write placeholder")
+            data = _placeholder_picks(user_id, event)
+    except Exception as e:
+        print(f"[ERROR] LIVE Picks {user_id} GW{event}: {e} -> write placeholder")
+        data = _placeholder_picks(user_id, event)
+
+    with open(f"data/{user_id}_{event}.json", "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False)
+    print(f"USER_PICKS FILES ==> {user_id}_{event}.json")
+    
+def _get_user_picks_file_live(user_id, event):
         url = f"https://fantasy.premierleague.com/api/entry/{user_id}/event/{event}/picks/"
         # Gửi yêu cầu GET đến API
         response = requests.get(url)
@@ -286,6 +372,106 @@ def get_current_event(file_path='data/bootstrap-static.json'):
         return None, None
 
 def render_old_gw_to_file(league_id):
+    try:
+        with open("data/league_id.json", "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        current_event_id, finished_status = get_current_event()
+
+        for gw_id in range(1, current_event_id + 1):
+            print(f"RENDER OLD HTML FILE ================================> data/gw_{gw_id}.html")
+            user_info = []
+
+            if 'standings' in data:
+                standings_info = data['standings']
+                if 'results' in standings_info:
+                    results = standings_info['results']
+                    if results:
+                        for result in results:
+                            user_id = result['entry']
+
+                            # Lấy lịch sử user (API /entry/{user_id}/history/)
+                            user_events = get_user_events_x(user_id) or []
+                            # Dựng map theo event để tránh lệch khi thiếu GW đầu
+                            events_by_event = {e.get('event'): e for e in user_events if isinstance(e, dict)}
+
+                            # Chọn record của GW cần render; nếu thiếu → placeholder 0
+                            event_selected = events_by_event.get(gw_id, _event_placeholder(gw_id))
+
+                            # Xác định "last_event" thực sự có data (max event có trong map), fallback = gw_id
+                            last_event_num = max(events_by_event.keys(), default=gw_id)
+                            last_event = events_by_event.get(last_event_num, _event_placeholder(last_event_num))
+
+                            print(f"RENDER {user_id} OLD HTML FILE ================================> ev{gw_id}/{event_selected.get('event')}")
+
+                            player_name = result.get('player_name', '')
+                            entry_name  = result.get('entry_name',  '')
+
+                            # Tổng điểm toàn mùa theo logic sẵn có
+                            total_points = calculate_total_points(user_id)
+
+                            # Điểm sự kiện đã trừ hit
+                            last_event_transfers_cost = event_selected.get('event_transfers_cost', 0) or 0
+                            last_event_points_raw     = event_selected.get('points', 0) or 0
+                            last_event_points         = last_event_points_raw - last_event_transfers_cost
+
+                            event_transfers = event_selected.get('event_transfers', 0) or 0
+
+                            # Lấy picks cho đúng event (có thể là placeholder nếu bạn đã vá 404 → ghi file đầy đủ)
+                            user_picks = get_user_picks(user_id, event_selected['event'])
+
+                            # Captain / vice + điểm live (các hàm này nên tự chống null/0)
+                            captain, vice_captain = get_captain_and_vice_captain(user_id, event_selected['event'])
+                            captain_name = get_web_name_by_element_id(captain) if captain else ""
+                            vice_name    = get_web_name_by_element_id(vice_captain) if vice_captain else ""
+                            captain_point = get_live_element_id(event_selected['event'], captain) if captain else 0
+                            vice_point    = get_live_element_id(event_selected['event'], vice_captain) if vice_captain else 0
+
+                            # Active chip theo đúng event đang render
+                            active_chip = get_active_chip(user_id, event_selected['event'])
+
+                            if user_picks is not None:
+                                total_goals_scored, total_assists, event_points = get_live_player_stats(
+                                    event_selected['event'], user_picks
+                                )
+
+                                user_info.append({
+                                    'user_id': user_id,
+                                    'player_name': player_name,
+                                    'entry_name': entry_name,
+                                    'total_points': total_points,
+                                    'last_event_points': last_event_points,
+                                    'last_event_transfers_cost': last_event_transfers_cost,
+                                    'user_picks': user_picks,
+                                    'total_goals_scored': total_goals_scored,
+                                    'total_assists': total_assists,
+                                    'active_chip': active_chip,
+                                    'event_transfers': event_transfers,
+                                    'captain_name': captain_name,
+                                    'vice_name': vice_name,
+                                    'captain_point': captain_point
+                                })
+
+                        # Giữ nguyên tiêu chí sort hiện tại
+                        user_info.sort(
+                            key=lambda x: (x['last_event_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']),
+                            reverse=True
+                        )
+
+                        output_file = f"data/gw_{gw_id}.html"
+                        text_html = render_live_info(
+                            user_info,
+                            get_league_name(league_id),
+                            event_selected['event'],
+                            last_event['event']
+                        )
+                        with open(output_file, "w", encoding="utf-8") as f:
+                            f.write(text_html)
+
+    except Exception as e:
+        print(e)
+
+def _render_old_gw_to_file(league_id):
   try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
@@ -301,6 +487,7 @@ def render_old_gw_to_file(league_id):
                     for result in results:
                         user_id = result['entry']
                         user_events = get_user_events_x(user_id)
+                        print(f"RENDER {user_id} OLD HTML FILE ================================> {user_events}")
                         event_selected = user_events[gw_id-1] if user_events else None
                         last_event = user_events[-1] if user_events else None
                         if event_selected:
@@ -631,7 +818,7 @@ def render_total_to_file(league_id):
   except Exception as e:
     print(e)
 
-def render_live_gw_to_file_v2(league_id):
+def _render_live_gw_to_file_v2(league_id):
   try:
     with open("data/league_id.json", "r") as file:
         data = json.load(file)
@@ -652,7 +839,9 @@ def render_live_gw_to_file_v2(league_id):
                     event_selected = user_events[gw_id-1] if user_events else None
                     last_event = user_events[-1] if user_events else None
                     if event_selected:
+                        
                         player_name = result.get('player_name', '')
+                        print(f"AAAAAAAAAAAAA ============== {player_name}")
                         entry_name = result.get('entry_name', '')
                         total_points = calculate_total_points(user_id)
                         last_event_transfers_cost = event_selected.get('event_transfers_cost', 0)
@@ -668,15 +857,18 @@ def render_live_gw_to_file_v2(league_id):
                         active_chip= get_active_chip(user_id, last_event['event'])
                         active_chip= get_active_chip(user_id, event_selected['event'])
                         all_bonus_points = get_expected_bonus_points(file_event)
-                        print(f"=============={player_name}")
+                        
                         if user_picks:
                             # Sử dụng hàm get_live_player_stats để lấy thông tin về cầu thủ
                             total_goals_scored, total_assists, event_points  = get_live_player_stats(event_selected['event'], user_picks)
                             print(f"AAAAAAAA")
-                            live_user_picks = get_pick_live_players_v2(gw_id, user_picks,all_bonus_points)
+                            try:
+                                live_user_picks = get_pick_live_players_v2(gw_id, user_picks,all_bonus_points)
+                                exp_user_picks = process_user_picks(live_user_picks,active_chip)
+                            except Exception as e:
+                                print(e)
                             print(f"live_user_picks {live_user_picks}")
-                            exp_user_picks = process_user_picks(live_user_picks,active_chip)
-                            #print(f"{player_name} ====== {exp_user_picks}")
+                            print(f"{player_name} ====== {exp_user_picks}")
                             #break
                             user_info.append({
                                 'user_id': user_id,
@@ -709,3 +901,126 @@ def render_live_gw_to_file_v2(league_id):
                     file.write(text_html)
   except Exception as e:
     print(e)
+
+def render_live_gw_to_file_v2(league_id):
+    try:
+        with open("data/league_id.json", "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        current_event_id, finished_status = get_current_event()
+        gw_id = current_event_id
+        print(f"RENDER LIVE HTML FILE FOR GW {gw_id} ================================> data/live.html")
+
+        user_info = []
+        file_event = f"data/events_{gw_id}.json"
+
+        if 'standings' in data:
+            standings_info = data['standings']
+            if 'results' in standings_info:
+                results = standings_info['results']
+                if results:
+                    for result in results:
+                        user_id = result['entry']
+
+                        # Lấy lịch sử theo event (không index theo vị trí)
+                        user_events = get_user_events(user_id) or []
+                        events_by_event = {e.get('event'): e for e in user_events if isinstance(e, dict)}
+
+                        # Chọn event hiện tại; nếu thiếu → placeholder
+                        event_selected = events_by_event.get(gw_id, _event_placeholder(gw_id))
+
+                        # Xác định last_event thực sự có trong lịch sử; nếu trống → gw_id
+                        last_event_num = max(events_by_event.keys(), default=gw_id)
+                        last_event = events_by_event.get(last_event_num, _event_placeholder(last_event_num))
+
+                        player_name = result.get('player_name', '')
+                        entry_name  = result.get('entry_name',  '')
+                        total_points = calculate_total_points(user_id)
+
+                        last_event_transfers_cost = event_selected.get('event_transfers_cost', 0) or 0
+                        last_event_points_raw     = event_selected.get('points', 0) or 0
+                        last_event_points         = last_event_points_raw - last_event_transfers_cost
+                        event_transfers           = event_selected.get('event_transfers', 0) or 0
+
+                        # Picks của event đang hiển thị (có thể là placeholder rỗng nếu 404)
+                        user_picks = get_user_picks(user_id, event_selected['event'])
+
+                        # Captain/vice (các hàm này nên tự chịu null; ở đây vẫn guard)
+                        captain, vice_captain = get_captain_and_vice_captain(user_id, event_selected['event'])
+                        captain_name  = get_web_name_by_element_id(captain) if captain else ""
+                        vice_name     = get_web_name_by_element_id(vice_captain) if vice_captain else ""
+                        captain_point = get_live_element_id(event_selected['event'], captain) if captain else 0
+                        vice_point    = get_live_element_id(event_selected['event'], vice_captain) if vice_captain else 0
+
+                        # Active chip theo đúng event đang render (không dựa vào index)
+                        active_chip = get_active_chip(user_id, event_selected['event'])
+
+                        # Bonus kỳ vọng và live-points
+                        try:
+                            all_bonus_points = get_expected_bonus_points(file_event)
+                        except Exception as e:
+                            print(f"[WARN] get_expected_bonus_points({file_event}): {e}")
+                            all_bonus_points = {}
+
+                        # Mặc định nếu không có picks
+                        live_total_points = last_event_points
+                        change_log = []
+                        bonus_log = []
+                        live_bps_log = []
+
+                        if user_picks:
+                            # Tính thống kê goals/assists theo picks
+                            total_goals_scored, total_assists, event_points = get_live_player_stats(
+                                event_selected['event'], user_picks
+                            )
+                            try:
+                                # Lấy danh sách cầu thủ live; hàm v2 đã được gia cố để bỏ pick không hợp lệ
+                                live_user_picks = get_pick_live_players_v2(gw_id, user_picks, all_bonus_points)
+                                exp_user_picks  = process_user_picks(live_user_picks, active_chip)
+                                # Live total points (đã trừ hit)
+                                live_total_points = int(exp_user_picks.get("total_points", 0)) - last_event_transfers_cost
+                                change_log  = exp_user_picks.get("change_log", [])
+                                bonus_log   = exp_user_picks.get("bonus_log", [])
+                                live_bps_log = exp_user_picks.get("live_bps_log", [])
+                            except Exception as e:
+                                print(f"[WARN] live picks processing failed for {user_id}: {e}")
+                                # fallback: giữ nguyên last_event_points và logs rỗng
+                        else:
+                            # Không có picks (user join muộn / placeholder) → goals/assists = 0
+                            total_goals_scored, total_assists = 0, 0
+
+                        user_info.append({
+                            'user_id': user_id,
+                            'player_name': player_name,
+                            'entry_name': entry_name,
+                            'total_points': total_points,
+                            'last_event_points': last_event_points,
+                            'last_event_transfers_cost': last_event_transfers_cost,
+                            'user_picks': user_picks or {"picks": []},
+                            'total_goals_scored': total_goals_scored,
+                            'total_assists': total_assists,
+                            'active_chip': active_chip,
+                            'event_transfers': event_transfers,
+                            'captain_name': captain_name,
+                            'vice_name':  vice_name,
+                            'captain_point': captain_point,
+                            'live_total_points': live_total_points,
+                            'chang_log': change_log,
+                            'bonus_log': bonus_log,
+                            'live_bps_log': live_bps_log,
+                            'vice_point': vice_point,
+                        })
+
+                    # Sắp xếp live desc theo tiêu chí cũ
+                    user_info.sort(
+                        key=lambda x: (x['live_total_points'], x['total_goals_scored'], x['total_assists'], -x['event_transfers']),
+                        reverse=True
+                    )
+
+                    output_file = 'data/live.html'
+                    text_html = render_user_live_v2(user_info, get_league_name(league_id), gw_id, gw_id)
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(text_html)
+
+    except Exception as e:
+        print(e)
