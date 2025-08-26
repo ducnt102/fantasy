@@ -30,6 +30,21 @@ def gw():
     print(e)
     return redirect(url_for('serve_html'))
 
+@app.route('/month')
+def month():
+  try:
+    selected_event = int(request.args.get('mon', 8))  # Lấy event từ request, mặc định là 0 nếu không có
+    html_file_path = f"data/month_{selected_event}.html"
+    with open(html_file_path, "r") as html_file:
+        html_content = html_file.read()
+        return html_content  # Return the HTML content as the response
+  except FileNotFoundError:
+    # If the file does not exist, return a 404 error
+    return f"<h1>Error 404: Gameweek {selected_event} not found.</h1>", 404
+  except Exception as e:
+    print(e)
+    return redirect(url_for('serve_html'))
+
 @app.route('/live')
 def live():
   try:

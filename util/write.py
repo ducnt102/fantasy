@@ -5,6 +5,19 @@ from html.render import *
 from src.logic import *
 import time
 from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from typing import List
+import os, json
+from typing import Dict, Any, List, Tuple
+
+
+_SESSION = requests.Session()
+_SESSION.headers.update({
+    "User-Agent": "Mozilla/5.0 (compatible; FPLTools/1.0)",
+    "Accept": "application/json",
+})
+
+BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 
 def get_league_name(league_id):
     url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/"
@@ -68,13 +81,14 @@ def generate_json_data_daily(league_id):
     render_away_to_file(league_id)
     render_total_to_file(league_id)
     render_old_gw_to_file(league_id)
+    render_months_until_now(league_id)
 
 def generate_json_data_hourly(league_id):
     print(f"HOURLY JOB: ======================================================>")    
     save_fixtures_to_file()
     save_bootstrap_to_file()
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,24,24)
+    running = check_fixtures_match_running_v2(current_event_id,8,2)
     if running == False:
         print(f"HOURLY JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
@@ -115,6 +129,8 @@ def generate_json_data_hourly(league_id):
         print(f"HOURLY JOB: ======================================================> ERROR Status code:", response.status_code)
     render_live_gw_to_file_v2(league_id)
     render_live_gw_to_file(league_id)
+    render_months_until_now(league_id)
+    
 
 def generate_json_data_live(league_id):
     # using to update events_<gw>.json to live
@@ -1024,3 +1040,417 @@ def render_live_gw_to_file_v2(league_id):
 
     except Exception as e:
         print(e)
+
+def get_bootstrap_static(cache_path="data/bootstrap-static.json", max_age_hours=6):
+    """Tải bootstrap-static và cache để giảm gọi API."""
+    try:
+        if os.path.exists(cache_path):
+            age_hours = (time.time() - os.path.getmtime(cache_path)) / 3600
+            if age_hours <= max_age_hours:
+                return _load_json_safe(cache_path, {})
+        r = _SESSION.get(BOOTSTRAP_URL, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        _atomic_write(cache_path, data)
+        return data
+    except Exception as e:
+        print(f"[WARN] get_bootstrap_static fallback cache: {e}")
+        return _load_json_safe(cache_path, {})
+
+def get_event_by_mon(mon: int) -> list[int]:
+    """
+    Trả về danh sách event IDs theo tháng (1..12) dựa trên events[].deadline_time (UTC).
+    Ví dụ: mon=8 -> [1,2,3] (tuỳ mùa).
+    """
+    bs = get_bootstrap_static()
+    events = bs.get("events", []) or []
+    result = []
+    for ev in events:
+        # deadline_time dạng "YYYY-MM-DDTHH:MM:SSZ"
+        dt_str = ev.get("deadline_time")
+        ev_id = ev.get("id")
+        if not dt_str or not ev_id:
+            continue
+        try:
+            # parse ISO với Z (UTC)
+            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00")).astimezone(timezone.utc)
+            if dt.month == int(mon):
+                result.append(int(ev_id))
+        except Exception:
+            continue
+    return sorted(result)
+
+def _load_json_safe(path, default=None):
+    if default is None: default = {}
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[WARN] Cannot read {path}: {e}")
+    return default
+
+def _sum_points_for_events(user_history: Dict[str, Any], event_ids: set[int]) -> tuple[int, int, int]:
+    """
+    Cộng điểm theo các event trong user_history (data/<user_id>.json) cho tập event_ids.
+    Trả về:
+      - total_net_points:   tổng (points - event_transfers_cost)
+      - total_transfers:    tổng event_transfers
+      - total_hits:         tổng event_transfers_cost
+    """
+    total_net_points = 0
+    total_transfers = 0
+    total_hits = 0
+
+    current = user_history.get("current", []) or []
+    for rec in current:
+        try:
+            ev = int(rec.get("event", -1))
+            if ev in event_ids:
+                pts   = int(rec.get("points", 0) or 0)
+                hits  = int(rec.get("event_transfers_cost", 0) or 0)
+                trans = int(rec.get("event_transfers", 0) or 0)
+
+                total_net_points += (pts - hits)
+                total_transfers  += trans
+                total_hits       += hits
+        except Exception:
+            continue
+
+    return total_net_points, total_transfers, total_hits
+
+
+def compute_month_points(mon: int, league_id: int) -> List[Dict[str, Any]]:
+    """
+    Đọc data/league_id.json để lấy danh sách user trong league,
+    sau đó đọc data/<user_id>.json và cộng điểm theo các event thuộc tháng mon.
+
+    Trả về mỗi user:
+      {
+        "user_id": ...,
+        "player_name": ...,
+        "entry_name": ...,
+        "month_points": <điểm ròng (points - hits)>,
+        "month_transfers": <tổng event_transfers>,
+        "month_hits": <tổng event_transfers_cost>
+      }
+    """
+    month_events = set(get_event_by_mon(int(mon)))
+    if not month_events:
+        print(f"[INFO] No events mapped for month {mon}")
+
+    league_path = "data/league_id.json"
+    league_data = _load_json_safe(league_path, {})
+    results: List[Dict[str, Any]] = []
+
+    standings = (league_data.get("standings") or {}).get("results") or []
+    for row in standings:
+        user_id = row.get("entry")
+        player_name = row.get("player_name", "")
+        entry_name  = row.get("entry_name", "")
+        if not user_id:
+            continue
+
+        user_hist = _load_json_safe(f"data/{user_id}.json", {"current": []})
+        month_points_net, month_transfers, month_hits = _sum_points_for_events(user_hist, month_events)
+
+        results.append({
+            "user_id": user_id,
+            "player_name": player_name,
+            "entry_name": entry_name,
+            "month_points": month_points_net,   # đã trừ hits
+            "month_transfers": month_transfers, # chỉ số phụ 1
+            "month_hits": month_hits            # chỉ số phụ 2
+        })
+
+    # Sort: điểm ròng desc, rồi transfers asc, rồi hits asc
+    results.sort(
+        key=lambda x: (int(x.get("month_points", 0)),
+                       -int(x.get("month_transfers", 0)) * -1,  # giữ thứ tự rõ ràng
+                       -int(x.get("month_hits", 0)) * -1),
+        reverse=True
+    )
+    # Lưu ý: biểu thức trên tương đương sort theo
+    # (month_points desc, month_transfers asc, month_hits asc).
+    # Có thể viết gọn hơn như dưới, nhưng cần hai bước hoặc sort tuple phức tạp.
+    # Để tránh nhầm, ta có thể làm như sau (dễ đọc):
+    results.sort(
+        key=lambda x: (
+            -int(x.get("month_points", 0)),          # điểm ròng cao hơn trước
+             int(x.get("month_transfers", 0)),       # transfers ít hơn trước
+             int(x.get("month_hits", 0))             # hits ít hơn trước
+        )
+    )
+
+    return results
+
+def _render_month_points_to_file(mon: int, league_id: int, out_dir: str = "data") -> str:
+    """
+    Render bảng xếp hạng theo tháng ra HTML: data/month_<mon>.html
+    - Có thanh điều hướng tháng (8 -> tháng hiện tại), đánh dấu tháng đang xem.
+    - Dữ liệu rows được bảo vệ nếu thiếu field.
+    """
+    # Tính rows & thông tin hiển thị
+    rows = compute_month_points(mon, league_id)  # list[{"user_id","player_name","entry_name","month_points"}]
+    # Nếu compute không sort, đảm bảo sort tại đây
+    try:
+        rows = sorted(rows, key=lambda r: int(r.get("month_points", 0)), reverse=True)
+    except Exception:
+        pass
+
+    league_name = get_league_name(league_id) if "get_league_name" in globals() else f"League {league_id}"
+    events_list = get_event_by_mon(int(mon))
+    events_str = ", ".join(str(e) for e in events_list) if events_list else "—"
+
+    # Tính dải tháng của mùa (8 -> tháng hiện tại, có xử lý qua năm)
+    now = datetime.now()
+    cur_mon = now.month
+    if cur_mon >= 8:
+        months = list(range(8, cur_mon + 1))
+    else:
+        months = list(range(8, 13)) + list(range(1, cur_mon + 1))
+
+    # HTML
+    html = []
+    html.append("<!doctype html><html><head><meta charset='utf-8'>")
+    html.append("<meta name='viewport' content='width=device-width,initial-scale=1'>")
+    html.append(f"<title>FPL Month {int(mon)} — {league_name}</title>")
+    html.append("<style>")
+    html.append("body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:16px;}")
+    html.append("h1{margin:0 0 8px} .sub{color:#666;margin:0 0 16px}")
+    html.append("#nav{margin:8px 0 16px}")
+    html.append("#nav a{display:inline-block;margin-right:8px;text-decoration:none;color:#0a7}")
+    html.append("#nav a.active{font-weight:700;text-decoration:underline}")
+    html.append("table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px;text-align:left}")
+    html.append("th{background:#f6f6f6} tr:nth-child(even){background:#fafafa}")
+    html.append("</style></head><body>")
+
+    # Header
+    html.append(f"<h1>Tháng {int(mon)} — {league_name}</h1>")
+    html.append(f"<p class='sub'>Gameweeks: {events_str}</p>")
+
+    # Điều hướng sang các tháng khác (8 -> current)
+    html.append("<div id='nav'>")
+    for m in months:
+        cls = "active" if m == int(mon) else ""
+        # Nếu bạn có route Flask: /month?mon=<m>, giữ href như dưới.
+        # Nếu bạn serve file tĩnh: đổi href thành f'/month_{m}.html'
+        html.append(f"<a class='{cls}' href='/month?mon={m}'>Tháng {m}</a>")
+    html += "<a href='/' style='color:#4CAF50; text-decoration;'>Total </a>"
+    html += "<a href='/home' style='color:#4CAF50; text-decoration;'>Home </a>"
+    html += "<a href='/away' style='color:#4CAF50; text-decoration;'>Away </a>"
+    html += "<a href='/live' style='color:#4CAF50; text-decoration;'>    GW</a><br>"
+    html.append("</div>")
+    
+    # Bảng điểm
+    html.append("<table><thead><tr>")
+    html.append("<th>#</th><th>User ID</th><th>Player</th><th>Team</th><th>Điểm tháng</th>")
+    html.append("</tr></thead><tbody>")
+
+    if rows:
+        for i, r in enumerate(rows, 1):
+            user_id = r.get('user_id', '')
+            player_name = r.get('player_name', '')
+            entry_name = r.get('entry_name', '')
+            month_points = r.get('month_points', 0)
+            html.append(
+                f"<tr><td>{i}</td><td>{user_id}</td>"
+                f"<td>{player_name}</td><td>{entry_name}</td>"
+                f"<td><b>{month_points}</b></td></tr>"
+            )
+    else:
+        html.append("<tr><td colspan='5' style='text-align:center;color:#999'>Không có dữ liệu</td></tr>")
+
+    html.append("</tbody></table></body></html>")
+
+    # Ghi file
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"month_{int(mon)}.html")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("".join(html))
+    print(f"[OK] Wrote {out_path}")
+    return out_path
+
+def get_months_to_render(now: datetime | None = None, season_start_month: int = 8) -> List[int]:
+    """
+    Trả về danh sách các tháng cần render kể từ đầu mùa (mặc định tháng 8)
+    đến THÁNG HIỆN TẠI, có xử lý qua năm (8..12,1..current).
+    Ví dụ:
+      - now.month = 8  -> [8]
+      - now.month = 12 -> [8,9,10,11,12]
+      - now.month = 3  -> [8,9,10,11,12,1,2,3]
+    """
+    if now is None:
+        now = datetime.now()
+    cur = now.month
+    if cur >= season_start_month:
+        return list(range(season_start_month, cur + 1))
+    # wrap sang năm sau
+    return list(range(season_start_month, 13)) + list(range(1, cur + 1))
+
+
+def render_current_month(league_id: int, now: datetime | None = None) -> str:
+    """
+    Render đúng THÁNG HIỆN TẠI ra data/month_<mon>.html
+    """
+    if now is None:
+        now = datetime.now()
+    mon = now.month
+    return render_month_points_to_file(mon=mon, league_id=league_id)
+
+
+def render_months_until_now(league_id: int, now: datetime | None = None, season_start_month: int = 8) -> list[str]:
+    """
+    Render TẤT CẢ các tháng từ tháng 8 (mặc định) đến THÁNG HIỆN TẠI.
+    Trả về list đường dẫn file đã tạo.
+    """
+    if now is None:
+        now = datetime.now()
+    months = get_months_to_render(now=now, season_start_month=season_start_month)
+    outputs = []
+    for mon in months:
+        out = render_month_points_to_file(mon=mon, league_id=league_id)
+        outputs.append(out)
+    return outputs
+
+def render_month_points_to_file(mon: int, league_id: int, out_dir: str = "data") -> str:
+    """
+    Render bảng xếp hạng theo tháng ra HTML: data/month_<mon>.html
+    - Giao diện theo format đã yêu cầu (banner, màu nền các hàng, chữ trắng).
+    - Có thanh điều hướng các tháng (8 -> tháng hiện tại), bôi đậm tháng đang xem.
+    - Bảng hiển thị: #, User ID, Player, Team, Điểm tháng (điểm ròng),
+      kèm 2 chỉ số phụ: Transfers (tổng event_transfers) và Hits (tổng event_transfers_cost).
+    """
+    # Lấy dữ liệu
+    rows = compute_month_points(mon, league_id)  # yêu cầu: month_points, month_transfers, month_hits
+    try:
+        rows = sorted(
+            rows,
+            key=lambda r: (-int(r.get("month_points", 0)),
+                           int(r.get("month_transfers", 0)),
+                           int(r.get("month_hits", 0)))
+        )
+    except Exception:
+        pass
+
+    league_name = get_league_name(league_id) if "get_league_name" in globals() else f"League {league_id}"
+    events_list = get_event_by_mon(int(mon))
+    events_str = ", ".join(str(e) for e in events_list) if events_list else "—"
+
+    # Tính dải tháng theo mùa (8 -> tháng hiện tại, có wrap qua năm)
+    now = datetime.now()
+    cur_mon = now.month
+    if cur_mon >= 8:
+        months = list(range(8, cur_mon + 1))
+    else:
+        months = list(range(8, 13)) + list(range(1, cur_mon + 1))
+
+    # ---- HTML theo format yêu cầu ----
+    html = []
+    html.append("<html><head>")
+    html.append("<meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'/>")
+    html.append("<style>")
+    html.append("body {")
+    html.append("    margin: 0;")
+    html.append("    padding: 0;")
+    html.append("    font-family: Arial, sans-serif;")
+    html.append("    background-image: url('https://www.ncfsc.co.uk/wp-content/uploads/2023/05/FPL_Banner.png');")
+    html.append("    background-size: 20% auto;")
+    html.append("    background-repeat: no-repeat;")
+    html.append("    background-position: left top;")
+    html.append("}")
+    html.append("#header {")
+    html.append("    background-color: transparent;")
+    html.append("    text-align: center;")
+    html.append("    padding: 20px;")
+    html.append("    color: #4CAF50;")
+    html.append("}")
+    html.append("#nav { margin: 6px 0 0; }")
+    html.append("#nav a { color: #4CAF50; text-decoration: none; margin: 0 6px; }")
+    html.append("#nav a.active { font-weight: bold; text-decoration: underline; }")
+    html.append("#table-container {")
+    html.append("    background-color: transparent;")
+    html.append("    padding: 20px;")
+    html.append("    overflow-x: auto;")
+    html.append("}")
+    html.append("table {")
+    html.append("    border-collapse: collapse;")
+    html.append("    width: 100%;")
+    html.append("    margin: 0 auto;")
+    html.append("}")
+    html.append("th, td {")
+    html.append("    border: 1px solid white;")
+    html.append("    padding: 10px;")
+    html.append("    text-align: center;")
+    html.append("    color: white;")
+    html.append("}")
+    html.append("th {")
+    html.append("    font-weight: bold;")
+    html.append("}")
+    html.append("tr.row-0 td { background-color: #13174B; }")
+    html.append("tr.row-1 td { background-color: #4CAF50; }")
+    html.append("tr.row-2 td { background-color: #ED4D5E; }")
+    html.append("th.highlight { background-color: #ED4D5E; }")
+    html.append("</style>")
+    html.append("</head><body>")
+
+    # Header
+    html.append("<div id='header'>")
+    html.append(f"<h1>{league_name} — Tháng {int(mon)}</h1>")
+    html.append(f"<div>Gameweeks: <b>{events_str}</b></div>")
+
+    # Điều hướng theo THÁNG
+    html.append("<div id='nav'>")
+    # nếu bạn phục vụ file tĩnh, có thể đổi href thành f'/month_{m}.html'
+    for m in months:
+        cls = "active" if m == int(mon) else ""
+        html.append(f"<a class='{cls}' href='/month?mon={m}'>Tháng {m}</a>")
+    html.append("</div>")
+
+    html.append("</div>")  # /header
+
+    # Table Container
+    html.append("<div id='table-container'>")
+    html.append("<table>")
+    html.append("<tr>")
+    html.append("<th class='highlight'>#</th>")
+    html.append("<th class='highlight'>User ID</th>")
+    html.append("<th class='highlight'>Player Name</th>")
+    html.append("<th class='highlight'>Entry (Team)</th>")
+    html.append("<th class='highlight'>Điểm tháng (Net)</th>")
+    html.append("<th class='highlight'>Transfers</th>")
+    html.append("<th class='highlight'>Hits</th>")
+    html.append("</tr>")
+
+    if rows:
+        for idx, r in enumerate(rows, 1):
+            user_id = r.get("user_id", "")
+            player_name = r.get("player_name", "")
+            entry_name  = r.get("entry_name", "")
+            month_pts   = r.get("month_points", 0)
+            month_trans = r.get("month_transfers", 0)
+            month_hits  = r.get("month_hits", 0)
+
+            html.append(f"<tr class='row-{(idx-1) % 3}'>")
+            html.append(f"<td>{idx}</td>")
+            html.append(f"<td>{user_id}</td>")
+            html.append(f"<td>{player_name}</td>")
+            html.append(f"<td>{entry_name}</td>")
+            html.append(f"<td><b>{month_pts}</b></td>")
+            html.append(f"<td>{month_trans}</td>")
+            html.append(f"<td>{month_hits}</td>")
+            html.append("</tr>")
+    else:
+        html.append("<tr class='row-0'><td colspan='7'>Không có dữ liệu</td></tr>")
+
+    html.append("</table>")
+    html.append("</div>")  # /table-container
+    html.append("</body></html>")
+
+    # Ghi file
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"month_{int(mon)}.html")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("".join(html))
+    print(f"[OK] Wrote {out_path}")
+    return out_path
