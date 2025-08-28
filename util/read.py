@@ -20,7 +20,7 @@ def get_active_chip(user_id, event):
         print(f"Yêu cầu get chip không thành công cho {user_id} event {event}")
         return None
 
-def get_live_player_stats(event, user_picks):
+def _get_live_player_stats(event, user_picks):
     file_name = f"data/events_{str(event)}.json"
     with open(file_name, "r") as file:
         data = json.load(file)        
@@ -49,8 +49,70 @@ def get_live_player_stats(event, user_picks):
         print(f"Yêu cầu không thành công cho event {event}")
         return None
 
+def get_live_player_stats(event: int, user_picks: Dict[str, Any]):
+    """
+    Trả về (total_goals_scored, total_assists, live_user_points) cho cả đội.
+    Hỗ trợ DGW bằng cách ưu tiên lấy từ 'stats' (đã cộng dồn), nếu thiếu thì cộng từ 'explain'.
+    """
+    file_name = f"data/events_{str(event)}.json"
+    try:
+        with open(file_name, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return 0, 0, 0
 
-def get_pick_live_players_v2(
+    elements = data.get("elements", []) if isinstance(data, dict) else []
+    elements_by_id = {e.get("id"): e for e in elements if isinstance(e, dict)}
+
+    total_goals_scored = 0
+    total_assists = 0
+    live_user_points = 0
+
+    for pick in user_picks.get("picks", []):
+        element_id = pick.get("element")
+        multiplier = int(pick.get("multiplier", 0) or 0)
+
+        # chỉ tính cầu thủ đang đá (multiplier 1/2/3)
+        if multiplier not in (1, 2, 3):
+            continue
+
+        p = elements_by_id.get(element_id)
+        if not p:
+            continue
+
+        stats = p.get("stats") or {}
+        g = stats.get("goals_scored")
+        a = stats.get("assists")
+        tp = stats.get("total_points")
+
+        # Nếu thiếu, tính từ explain
+        if g is None or a is None or tp is None:
+            g_sum = 0
+            a_sum = 0
+            tp_sum = 0
+            for ex in p.get("explain", []) or []:
+                for item in ex.get("stats", []) or []:
+                    ident = item.get("identifier")
+                    if ident == "goals_scored":
+                        g_sum += int(item.get("value", 0) or 0)
+                    elif ident == "assists":
+                        a_sum += int(item.get("value", 0) or 0)
+                    # 'points' là điểm cho từng chỉ tiêu ở 1 fixture
+                    tp_sum += int(item.get("points", 0) or 0)
+            if g is None:
+                g = g_sum
+            if a is None:
+                a = a_sum
+            if tp is None:
+                tp = tp_sum
+
+        total_goals_scored += int(g or 0)
+        total_assists += int(a or 0)
+        live_user_points += int(tp or 0) * multiplier
+
+    return total_goals_scored, total_assists, live_user_points
+
+def _get_pick_live_players_v2(
     event: int, 
     user_picks: Dict[str, Any], 
     all_bonus_points: Dict[int, Dict[int, float]], 
@@ -164,100 +226,108 @@ def get_pick_live_players_v2(
         print(f"Error decoding JSON: {e}")
         return []
 
-def _get_pick_live_players_v2(
+def get_pick_live_players_v2(
     event: int, 
     user_picks: Dict[str, Any], 
     all_bonus_points: Dict[int, Dict[int, float]], 
     player_info_path: str = "data/player_full_info.json"
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve detailed information about 15 players in user picks.
-
-    Args:
-        event (int): The event ID.
-        user_picks (dict): User's picks containing player IDs and multipliers.
-        all_bonus_points (dict): A dictionary containing expected bonus points.
-        player_info_path (str): Path to the player information JSON file.
-
-    Returns:
-        List[Dict[str, Any]]: A list of dictionaries containing player details.
+    Đọc data/events_<gw>.json và trả về danh sách các cầu thủ trong đội hình của user
+    (đã gộp bonus dự kiến cho tất cả các fixture nếu là Double/Triple GW).
+    all_bonus_points: dict[fixture_id] -> {"bonus_points": {element_id: bonus}, "running": bool}
     """
     file_name = f"data/events_{str(event)}.json"
+
+    # Tải event live
     try:
-        # Load event data
-        with open(file_name, "r") as event_file:
-            event_data = json.load(event_file)
+        with open(file_name, "r", encoding="utf-8") as f:
+            event_data = json.load(f)
+    except Exception:
+        event_data = {}
 
-        # Load player info data
-        with open(player_info_path, "r") as player_file:
-            player_info_dict = json.load(player_file)
+    elements = event_data.get("elements", []) if isinstance(event_data, dict) else []
+    elements_by_id = {e.get("id"): e for e in elements if isinstance(e, dict)}
 
-        players_info = []
+    # Thông tin tên cầu thủ, vị trí
+    try:
+        with open(player_info_path, "r", encoding="utf-8") as f:
+            player_info_dict = json.load(f) or {}
+    except Exception:
+        player_info_dict = {}
 
-        # Process each pick
-        for user_pick in user_picks['picks']:
-            element_id = user_pick['element']
-            multiplier = user_pick['multiplier']
-            is_captain = user_pick['is_captain']
-            is_vice_captain = user_pick['is_vice_captain']
-            position = user_pick['position']
+    players_info: List[Dict[str, Any]] = []
 
-            # Default values if the player data is not found
-            player_details = {
-                "ID": element_id,
-                "web_name": player_info_dict.get(str(element_id), {}).get("web_name", "Unknown"),
-                "point": 0,
-                "bonus": 0,
-                "expected_bonus": 0,
-                "element_type": player_info_dict.get(str(element_id), {}).get("element_type", "Unknown"),
-                "minutes": 0,
-                "multiplier": multiplier,
-                "is_captain": is_captain,
-                "is_vice_captain": is_vice_captain,
-                "running": False,
-                "position": position,
-                "fixture": 0
-            }
+    for user_pick in user_picks.get("picks", []):
+        element_id = user_pick.get("element")
+        multiplier = int(user_pick.get("multiplier", 0) or 0)
+        is_captain = bool(user_pick.get("is_captain", False))
+        is_vice_captain = bool(user_pick.get("is_vice_captain", False))
+        position = user_pick.get("position")
 
-            # Find the player in the event data
-            for player in event_data.get('elements', []):
-                if player['id'] == element_id:
-                    player_details["point"] = player['stats']['total_points']
-                    player_details["bonus"] = player['stats']['bonus']
-                    player_details["minutes"] = player['stats']['minutes']
-                    try:
-                        # Safely access the explain array
-                        explain_data = player.get('explain', [])
-                        if explain_data:
-                            # Extract the first fixture ID (if multiple, select the first occurrence)
-                            player_details["fixture"] = explain_data[0].get('fixture', '0')
-                        else:
-                            player_details["fixture"] = '0'
-                            player_details["minutes"] = 0
-                            player_details["running"] = True
-                            player_details["expected_bonus"] = 0
-                            break
-                    except Exception as e:
-                        print(f"Error extracting fixture for player {element_id}: {e}")
-                        player_details["fixture"] = '0'
-                    try:
-                        #chi co 3 player co bonus
-                        player_details["expected_bonus"] = all_bonus_points[player_details["fixture"]]["bonus_points"][element_id]
-                    except Exception as e:
-                        player_details["expected_bonus"] = 0
-                    player_details["running"] = all_bonus_points[player_details["fixture"]]["running"]
-                    break
+        info_from_dict = player_info_dict.get(str(element_id), {})
+
+        player_details: Dict[str, Any] = {
+            "ID": element_id,
+            "web_name": info_from_dict.get("web_name", "Unknown"),
+            "point": 0,
+            "bonus": 0,
+            "expected_bonus": 0,
+            "element_type": info_from_dict.get("element_type", 0) or 0,
+            "minutes": 0,
+            "multiplier": multiplier,
+            "is_captain": is_captain,
+            "is_vice_captain": is_vice_captain,
+            "running": False,
+            "position": position,
+            "fixture": 0,   # giữ nguyên field cũ để không phá UI hiện có
+        }
+
+        player_obj = elements_by_id.get(element_id)
+        if not player_obj:
             players_info.append(player_details)
+            continue
 
-        return players_info
+        stats = player_obj.get("stats") or {}
+        player_details["point"] = int(stats.get("total_points", 0) or 0)
+        player_details["bonus"] = int(stats.get("bonus", 0) or 0)
+        player_details["minutes"] = int(stats.get("minutes", 0) or 0)
 
-    except FileNotFoundError as e:
-        print(f"File not found: {e}")
-        return []
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return []
+        # Lấy tất cả fixture_id mà cầu thủ xuất hiện trong GW này (DGW/TGW)
+        explain = player_obj.get("explain") or []
+        fixture_ids: List[int] = []
+        for ex in explain:
+            try:
+                fid = ex.get("fixture")
+                if isinstance(fid, int):
+                    fixture_ids.append(fid)
+            except Exception:
+                continue
 
+        if fixture_ids:
+            # Giữ lại fixture cuối cùng để tương thích với UI cũ
+            player_details["fixture"] = fixture_ids[-1]
+
+            # Tổng expected_bonus trên tất cả fixture trong GW
+            expected_bonus_sum = 0
+            running_any = False
+            for fid in fixture_ids:
+                # all_bonus_points có thể dùng key int hoặc str
+                abp_entry = (
+                    all_bonus_points.get(fid)
+                    or all_bonus_points.get(str(fid))
+                    or {}
+                )
+                bp_map = abp_entry.get("bonus_points") or {}
+                expected_bonus_sum += int(bp_map.get(element_id, 0) or 0)
+                running_any = running_any or bool(abp_entry.get("running", False))
+
+            player_details["expected_bonus"] = expected_bonus_sum
+            player_details["running"] = running_any
+
+        players_info.append(player_details)
+
+    return players_info
 
 def get_user_picks(user_id, event):
     with open(f"data/{user_id}_{event}.json", "r") as file:
@@ -278,7 +348,7 @@ def get_user_events(user_id):
         return user_data['current']
     return []
 
-def get_live_element_id(event, element_id):
+def _get_live_element_id(event, element_id):
     file_name = f"data/events_{str(event)}.json"
     total_point = 0
     with open(file_name, "r") as file:
@@ -293,4 +363,39 @@ def get_live_element_id(event, element_id):
         return total_point
     else:
         print(f"Yêu cầu không thành công cho event {event}")
-        return None
+        return 
+
+def get_live_element_id(event: int, element_id: int) -> int:
+    """
+    Trả về tổng điểm live của 1 cầu thủ trong GW (đã cộng dồn nếu là DGW).
+    Ưu tiên lấy từ field 'stats.total_points'. Nếu không có, fallback tính từ 'explain'.
+    """
+    file_name = f"data/events_{str(event)}.json"
+    try:
+        with open(file_name, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return 0
+
+    elements = data.get("elements", []) if isinstance(data, dict) else []
+    for p in elements:
+        try:
+            if p.get("id") != element_id:
+                continue
+
+            # 1) Có sẵn tổng ở 'stats'
+            stats = p.get("stats") or {}
+            if "total_points" in stats:
+                return int(stats.get("total_points", 0) or 0)
+
+            # 2) Fallback: cộng điểm từ explain
+            total_points = 0
+            for ex in p.get("explain", []) or []:
+                for item in ex.get("stats", []) or []:
+                    # FPL trả về 'points' cho từng chỉ tiêu ở fixture; cộng tất cả lại
+                    total_points += int(item.get("points", 0) or 0)
+            return total_points
+        except Exception:
+            continue
+
+    return 0
