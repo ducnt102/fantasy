@@ -135,7 +135,7 @@ def generate_json_data_hourly(league_id):
 def generate_json_data_live(league_id):
     # using to update events_<gw>.json to live
     current_event_id, finished_status = get_current_event()
-    running = check_fixtures_match_running_v2(current_event_id,2,0)
+    running = check_fixtures_match_running_v2(current_event_id,24,24)
     if running == False:
         print(f"LIVE JOB ====> GW {current_event_id} running={running} ====> DO NOTHING !!!!!!!!!!!")
         return
@@ -842,8 +842,9 @@ def _render_live_gw_to_file_v2(league_id):
                                 'chang_log': exp_user_picks["change_log"],
                                 'bonus_log': exp_user_picks["bonus_log"],
                                 'live_bps_log': exp_user_picks["live_bps_log"],
-                                'vice_point': vice_point
-
+                                'vice_point': vice_point,
+                                'count_player': exp_user_picks["count_player"],
+                                'remain_player': exp_user_picks["remain_player"]
                             })
                 # Sắp xếp theo điểm của sự kiện cuối cùng từ cao đến thấp
                 #user_info.sort(key=lambda x: x['last_event_points'], reverse=True)
@@ -962,6 +963,8 @@ def render_live_gw_to_file_v2(league_id):
                             'bonus_log': bonus_log,
                             'live_bps_log': live_bps_log,
                             'vice_point': vice_point,
+                            'count_player': exp_user_picks["count_player"],
+                            'remain_player': exp_user_picks["remain_player"]
                         })
 
                     # Sắp xếp live desc theo tiêu chí cũ

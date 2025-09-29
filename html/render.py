@@ -274,7 +274,7 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
     html += "<div id='table-container'>"
     # Bổ sung thông tin về các lựa chọn, event_transfers và live_player_stats vào trang HTML
     html += "<table>"
-    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans(Cost)</th><th class='highlight'>Cap|Vice</th><th class='highlight'>Goals|Assists</th><th class='highlight'>LiveSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
+    html += "<tr><th class='highlight'>Entry</th><th class='highlight'>Name</th><th class='highlight'>Points</th><th class='highlight'>Chip</th><th class='highlight'>Trans(Cost)</th><th class='highlight'>Cap|Vice</th><th class='highlight'>Chưa thi đấu</th><th class='highlight'>Goals|Assists</th><th class='highlight'>LiveSub</th><th class='highlight'>Bonus</th><th class='highlight'>Live Bonus</th></tr>"
     
     for idx,user in enumerate(user_info):
         player_name = user['player_name']
@@ -295,6 +295,8 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
         vice_point = user['vice_point']
         bonus_log = user['bonus_log']
         live_bps_log = user['live_bps_log']
+        remain_player = user['remain_player']
+        count_player = user['count_player']
 
 
         html += "<tr class='row-" + str(idx % 3) + "'>"
@@ -304,6 +306,7 @@ def render_user_live_v2(user_info, league_name, gw_id, last_gw):
         html += f"<td>{active_chip}</td>"
         html += f"<td>{event_transfers}{'(0)' if last_event_transfers_cost == 0 else f'(-{last_event_transfers_cost})'}</td>"
         html += f"<td>{captain_name}({captain_point})<br>{vice_name}({vice_point})</td>"
+        html += f"<td>{count_player}<br>{remain_player}<br></td>"
         html += f"<td>G:{total_goals_scored}<br>A:{total_assists}<br></td>"
         html += f"<td>{chang_log}</td>"
         html += f"<td>{bonus_log}</td>"

@@ -253,7 +253,7 @@ def get_expected_bonus_points(file_path: str) -> DefaultDict[int, DefaultDict[in
         return defaultdict(lambda: defaultdict(int))
     
 
-def process_user_picks(live_user_picks: List[Dict[str, Any]],active_chip) -> Dict[str, Any]:
+def process_user_picks_(live_user_picks: List[Dict[str, Any]],active_chip) -> Dict[str, Any]:
     """
     Process 15 players to select the final 11 based on rules and calculate total points.
 
@@ -400,4 +400,145 @@ def process_user_picks(live_user_picks: List[Dict[str, Any]],active_chip) -> Dic
         "change_log": "<br>".join(change_log),
         "bonus_log": "<br>".join(bonus_log),
         "live_bps_log": "<br>".join(live_bps_log)
+    }
+
+from typing import List, Dict, Any
+
+def process_user_picks(live_user_picks: List[Dict[str, Any]], active_chip) -> Dict[str, Any]:
+    """
+    Process 15 players to select the final 11 based on rules and calculate total points.
+    Also returns:
+      - count_player: "played_count/11" (dựa trên 11 đá chính sau autosub)
+      - remain_player: tên các cầu thủ trong 11 đá chính chưa đá ("" nếu >5)
+    """
+
+    # Separate starters and substitutes
+    starters = [player for player in live_user_picks if player.get("multiplier", 0) > 0]
+    substitutes = [player for player in live_user_picks if player.get("multiplier", 0) == 0]
+    bb = 0
+
+    # --- Bench Boost (giữ cách tính điểm như cũ), nhưng count_player vẫn dựa trên 11 đá chính ---
+    if len(starters) >= 15 and active_chip != "manager":
+        for player in starters:
+            bb += player["point"] * player["multiplier"]
+
+        # Lấy 11 đá chính theo thứ tự xuất hiện trong live_user_picks (không tạo công thức mới)
+        xi_candidates = [p for p in live_user_picks if p.get("multiplier", 0) > 0 and p.get("element_type") != 5]
+        final_xi_11 = xi_candidates[:11]
+
+        played_count = sum(1 for p in final_xi_11 if p.get("minutes", 0) > 0)
+        remain_list = [p["web_name"] for p in final_xi_11 if p.get("minutes", 0) == 0]
+        remain_player = "" if len(remain_list) > 5 else ",".join(remain_list)
+
+        return {
+            "final_11": "BBOOST",
+            "substitutions": "BBOOST",
+            "total_points": bb,
+            "change_log": "BBOOST",
+            "bonus_log": "BBOOST",
+            "live_bps_log": "BBOOST",
+            "count_player": f"{played_count}/11",
+            "remain_player": remain_player,
+        }
+
+    # Formation requirements
+    required_formation = {"1": 1, "2": 3, "3": 2, "4": 1, "5": 0}
+    max_formation = {"1": 1, "2": 5, "3": 5, "4": 3, "5": 1}
+
+    # Current formation count
+    formation = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+    for player in starters:
+        formation[str(player["element_type"])] += 1
+
+    # Ensure formation meets minimum requirements
+    for key, min_count in required_formation.items():
+        if formation[key] < min_count:
+            raise ValueError(f"Formation error: Not enough players in position {key}.")
+
+    # Captain / Vice
+    total_points = 0
+    captain = next((p for p in starters if p.get("is_captain")), None)
+    vice_captain = next((p for p in starters if p.get("is_vice_captain")), None)
+
+    if captain and captain.get("minutes", 0) == 0 and captain.get("running", True):
+        if vice_captain:
+            total_points += (vice_captain["point"] - vice_captain["bonus"] + vice_captain["expected_bonus"]) * (captain["multiplier"] - 1)
+    elif captain:
+        total_points += (captain["point"] - captain["bonus"] + captain["expected_bonus"]) * captain["multiplier"]
+
+    # Other starters
+    for player in starters:
+        if not player.get("is_captain"):
+            total_points += (player["point"] - player["bonus"] + player["expected_bonus"]) * player["multiplier"]
+
+    # Logs
+    change_log, bonus_log, live_bps_log = [], [], []
+
+    # Identify players to replace (starter chưa đá, trận còn running, không phải manager)
+    to_replace = [
+        p for p in starters
+        if p.get("minutes", 0) == 0 and p.get("running", True) and p.get("element_type") != 5
+    ]
+
+    # Substitute
+    for sub in to_replace:
+        starters.remove(sub)
+        formation[str(sub["element_type"])] -= 1
+
+        substitute_found = False
+        for sub_player in list(substitutes):
+            if sub_player.get("minutes", 0) == 0:
+                continue
+            potential_formation = formation.copy()
+            potential_formation[str(sub_player["element_type"])] += 1
+
+            valid_formation = all(
+                required_formation[k] <= potential_formation[k] <= max_formation[k]
+                for k in required_formation
+            )
+            if valid_formation:
+                formation[str(sub_player["element_type"])] += 1
+                substitutes.remove(sub_player)
+                starters.append(sub_player)
+                total_points += sub_player["point"] - sub_player["bonus"] + sub_player["expected_bonus"]
+                change_log.append(f"{sub['web_name']} <== {sub_player['web_name']}")
+                substitute_found = True
+                break
+
+        if not substitute_found:
+            starters.append(sub)
+            formation[str(sub["element_type"])] += 1
+            change_log.append(f"{sub['web_name']} (NotSub)")
+
+    # Bonus / live bps logs
+    for p in live_user_picks:
+        if p.get("bonus", 0) > 0:
+            bonus_log.append(f"{p['web_name']}: {p['bonus']}")
+        if p.get("expected_bonus", 0) > 0 and p["expected_bonus"] != p.get("bonus", 0):
+            live_bps_log.append(f"{p['web_name']}: {p['expected_bonus']}")
+
+    # Ensure final formation still meets minimum requirements
+    for key, min_count in required_formation.items():
+        if formation[key] < min_count:
+            raise ValueError(f"Formation error after substitution: Not enough players in position {key}.")
+
+    # === CHỈNH Ở ĐÂY: tính Count/Remain CHỈ từ 11 đá chính sau autosub dựa trên minutes ===
+    final_xi = [p for p in starters if p.get("element_type") != 5]
+    # Bình thường đã đúng 11; nếu >11 (trường hợp ngoại lệ), cắt về 11 theo thứ tự hiện tại
+    if len(final_xi) > 11:
+        final_xi = final_xi[:11]
+
+    played_count = sum(1 for p in final_xi if p.get("minutes", 0) > 0)
+    remain_list = [p["web_name"] for p in final_xi if p.get("minutes", 0) == 0]
+    remain_player = "" if len(remain_list) > 5 else ",".join(remain_list)
+
+    return {
+        "final_11": final_xi,
+        "substitutions": to_replace,
+        "total_points": total_points,
+        "change_log": "<br>".join(change_log),
+        "bonus_log": "<br>".join(bonus_log),
+        "live_bps_log": "<br>".join(live_bps_log),
+        "count_player": f"{played_count}/11",
+        "remain_player": remain_player,
     }
